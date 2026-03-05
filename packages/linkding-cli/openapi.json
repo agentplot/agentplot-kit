@@ -1,0 +1,572 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Linkding API",
+    "description": "Self-hosted bookmark manager REST API",
+    "version": "1.0.0"
+  },
+  "servers": [],
+  "security": [
+    { "tokenAuth": [] }
+  ],
+  "components": {
+    "securitySchemes": {
+      "tokenAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "Authorization",
+        "description": "Token-based auth: 'Token <api-token>'"
+      }
+    },
+    "schemas": {
+      "PaginatedResponse": {
+        "type": "object",
+        "properties": {
+          "count": { "type": "integer" },
+          "next": { "type": "string", "nullable": true },
+          "previous": { "type": "string", "nullable": true },
+          "results": { "type": "array", "items": {} }
+        }
+      },
+      "Bookmark": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "readOnly": true },
+          "url": { "type": "string" },
+          "title": { "type": "string" },
+          "description": { "type": "string" },
+          "notes": { "type": "string" },
+          "web_archive_snapshot_url": { "type": "string", "readOnly": true },
+          "favicon_url": { "type": "string", "readOnly": true },
+          "preview_image_url": { "type": "string", "readOnly": true },
+          "is_archived": { "type": "boolean" },
+          "unread": { "type": "boolean" },
+          "shared": { "type": "boolean" },
+          "tag_names": { "type": "array", "items": { "type": "string" } },
+          "date_added": { "type": "string", "format": "date-time", "readOnly": true },
+          "date_modified": { "type": "string", "format": "date-time", "readOnly": true }
+        },
+        "required": ["url"]
+      },
+      "BookmarkCreate": {
+        "type": "object",
+        "properties": {
+          "url": { "type": "string" },
+          "title": { "type": "string" },
+          "description": { "type": "string" },
+          "notes": { "type": "string" },
+          "is_archived": { "type": "boolean" },
+          "unread": { "type": "boolean" },
+          "shared": { "type": "boolean" },
+          "tag_names": { "type": "array", "items": { "type": "string" } },
+          "disable_scraping": { "type": "boolean", "description": "Prevents auto-scraping title and description" }
+        },
+        "required": ["url"]
+      },
+      "BookmarkCheck": {
+        "type": "object",
+        "properties": {
+          "bookmark": { "$ref": "#/components/schemas/Bookmark" },
+          "metadata": {
+            "type": "object",
+            "properties": {
+              "title": { "type": "string" },
+              "description": { "type": "string" }
+            }
+          },
+          "auto_tags": { "type": "array", "items": { "type": "string" } }
+        }
+      },
+      "Asset": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "readOnly": true },
+          "bookmark": { "type": "integer" },
+          "asset_type": { "type": "string", "enum": ["snapshot", "upload"] },
+          "date_created": { "type": "string", "format": "date-time", "readOnly": true },
+          "content_type": { "type": "string" },
+          "display_name": { "type": "string" },
+          "status": { "type": "string" }
+        }
+      },
+      "Tag": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "readOnly": true },
+          "name": { "type": "string" },
+          "date_added": { "type": "string", "format": "date-time", "readOnly": true }
+        },
+        "required": ["name"]
+      },
+      "Bundle": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "readOnly": true },
+          "name": { "type": "string" },
+          "search": { "type": "string" },
+          "any_tags": { "type": "string", "description": "Space-separated tag names (OR match)" },
+          "all_tags": { "type": "string", "description": "Space-separated tag names (AND match)" },
+          "excluded_tags": { "type": "string", "description": "Space-separated tag names to exclude" },
+          "order": { "type": "integer" },
+          "date_created": { "type": "string", "format": "date-time", "readOnly": true },
+          "date_modified": { "type": "string", "format": "date-time", "readOnly": true }
+        },
+        "required": ["name"]
+      },
+      "UserProfile": {
+        "type": "object",
+        "properties": {
+          "theme": { "type": "string" },
+          "bookmark_date_display": { "type": "string" },
+          "bookmark_link_target": { "type": "string" },
+          "web_archive_integration": { "type": "string" },
+          "tag_search": { "type": "string" },
+          "enable_sharing": { "type": "boolean" },
+          "enable_public_sharing": { "type": "boolean" },
+          "enable_favicons": { "type": "boolean" },
+          "display_url": { "type": "boolean" },
+          "permanent_notes": { "type": "boolean" },
+          "search_preferences": { "type": "object" }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/api/bookmarks/": {
+      "get": {
+        "operationId": "list-bookmarks",
+        "summary": "List bookmarks",
+        "parameters": [
+          { "name": "q", "in": "query", "schema": { "type": "string" }, "description": "Search query" },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 100 } },
+          { "name": "offset", "in": "query", "schema": { "type": "integer" } },
+          { "name": "modified_since", "in": "query", "schema": { "type": "string", "format": "date-time" }, "description": "ISO 8601 timestamp to filter by modification date" },
+          { "name": "added_since", "in": "query", "schema": { "type": "string", "format": "date-time" }, "description": "ISO 8601 timestamp to filter by added date" },
+          { "name": "bundle", "in": "query", "schema": { "type": "integer" }, "description": "Bundle ID to filter by" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated list of bookmarks",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/PaginatedResponse" },
+                    { "type": "object", "properties": { "results": { "type": "array", "items": { "$ref": "#/components/schemas/Bookmark" } } } }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "create-bookmark",
+        "summary": "Create a bookmark",
+        "description": "Creates a bookmark. Title and description are auto-scraped unless disable_scraping is set.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/BookmarkCreate" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Bookmark created",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Bookmark" } } }
+          }
+        }
+      }
+    },
+    "/api/bookmarks/archived/": {
+      "get": {
+        "operationId": "list-archived-bookmarks",
+        "summary": "List archived bookmarks",
+        "parameters": [
+          { "name": "q", "in": "query", "schema": { "type": "string" }, "description": "Search query" },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 100 } },
+          { "name": "offset", "in": "query", "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated list of archived bookmarks",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/PaginatedResponse" },
+                    { "type": "object", "properties": { "results": { "type": "array", "items": { "$ref": "#/components/schemas/Bookmark" } } } }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/bookmarks/check/": {
+      "get": {
+        "operationId": "check-bookmark",
+        "summary": "Check URL and get scraped metadata",
+        "description": "Returns existing bookmark data if URL already saved, plus scraped metadata and auto-generated tags",
+        "parameters": [
+          { "name": "url", "in": "query", "required": true, "schema": { "type": "string" }, "description": "URL to check" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Bookmark check result",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BookmarkCheck" } } }
+          }
+        }
+      }
+    },
+    "/api/bookmarks/{id}/": {
+      "get": {
+        "operationId": "retrieve-bookmark",
+        "summary": "Get a bookmark",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Bookmark details",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Bookmark" } } }
+          }
+        }
+      },
+      "put": {
+        "operationId": "update-bookmark",
+        "summary": "Update a bookmark (full)",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BookmarkCreate" } } }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated bookmark",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Bookmark" } } }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "partial-update-bookmark",
+        "summary": "Partially update a bookmark",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BookmarkCreate" } } }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated bookmark",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Bookmark" } } }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "delete-bookmark",
+        "summary": "Delete a bookmark",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "204": { "description": "Bookmark deleted" }
+        }
+      }
+    },
+    "/api/bookmarks/{id}/archive/": {
+      "post": {
+        "operationId": "archive-bookmark",
+        "summary": "Archive a bookmark",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "204": { "description": "Bookmark archived" }
+        }
+      }
+    },
+    "/api/bookmarks/{id}/unarchive/": {
+      "post": {
+        "operationId": "unarchive-bookmark",
+        "summary": "Unarchive a bookmark",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "204": { "description": "Bookmark unarchived" }
+        }
+      }
+    },
+    "/api/bookmarks/{bookmark_id}/assets/": {
+      "get": {
+        "operationId": "list-assets",
+        "summary": "List assets for a bookmark",
+        "parameters": [
+          { "name": "bookmark_id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of assets",
+            "content": {
+              "application/json": {
+                "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Asset" } }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/bookmarks/{bookmark_id}/assets/upload/": {
+      "post": {
+        "operationId": "upload-asset",
+        "summary": "Upload a file asset to a bookmark",
+        "parameters": [
+          { "name": "bookmark_id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": { "type": "string", "format": "binary" }
+                },
+                "required": ["file"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Asset uploaded",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Asset" } } }
+          }
+        }
+      }
+    },
+    "/api/bookmarks/{bookmark_id}/assets/{id}/": {
+      "get": {
+        "operationId": "retrieve-asset",
+        "summary": "Get asset details",
+        "parameters": [
+          { "name": "bookmark_id", "in": "path", "required": true, "schema": { "type": "integer" } },
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Asset details",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Asset" } } }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "delete-asset",
+        "summary": "Delete an asset",
+        "parameters": [
+          { "name": "bookmark_id", "in": "path", "required": true, "schema": { "type": "integer" } },
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "204": { "description": "Asset deleted" }
+        }
+      }
+    },
+    "/api/bookmarks/{bookmark_id}/assets/{id}/download/": {
+      "get": {
+        "operationId": "download-asset",
+        "summary": "Download an asset file",
+        "parameters": [
+          { "name": "bookmark_id", "in": "path", "required": true, "schema": { "type": "integer" } },
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Asset file content",
+            "content": { "application/octet-stream": { "schema": { "type": "string", "format": "binary" } } }
+          }
+        }
+      }
+    },
+    "/api/tags/": {
+      "get": {
+        "operationId": "list-tags",
+        "summary": "List tags",
+        "parameters": [
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 100 } },
+          { "name": "offset", "in": "query", "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated list of tags",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/PaginatedResponse" },
+                    { "type": "object", "properties": { "results": { "type": "array", "items": { "$ref": "#/components/schemas/Tag" } } } }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "create-tag",
+        "summary": "Create a tag",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/Tag" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Tag created",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Tag" } } }
+          }
+        }
+      }
+    },
+    "/api/tags/{id}/": {
+      "get": {
+        "operationId": "retrieve-tag",
+        "summary": "Get a tag",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Tag details",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Tag" } } }
+          }
+        }
+      }
+    },
+    "/api/bundles/": {
+      "get": {
+        "operationId": "list-bundles",
+        "summary": "List bundles",
+        "parameters": [
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 100 } },
+          { "name": "offset", "in": "query", "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated list of bundles",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/PaginatedResponse" },
+                    { "type": "object", "properties": { "results": { "type": "array", "items": { "$ref": "#/components/schemas/Bundle" } } } }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "create-bundle",
+        "summary": "Create a bundle",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/Bundle" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Bundle created",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Bundle" } } }
+          }
+        }
+      }
+    },
+    "/api/bundles/{id}/": {
+      "get": {
+        "operationId": "retrieve-bundle",
+        "summary": "Get a bundle",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Bundle details",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Bundle" } } }
+          }
+        }
+      },
+      "put": {
+        "operationId": "update-bundle",
+        "summary": "Update a bundle (full)",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Bundle" } } }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated bundle",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Bundle" } } }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "partial-update-bundle",
+        "summary": "Partially update a bundle",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Bundle" } } }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated bundle",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Bundle" } } }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "delete-bundle",
+        "summary": "Delete a bundle",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "204": { "description": "Bundle deleted" }
+        }
+      }
+    },
+    "/api/user/profile/": {
+      "get": {
+        "operationId": "get-user-profile",
+        "summary": "Get user profile settings",
+        "responses": {
+          "200": {
+            "description": "User profile",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UserProfile" } } }
+          }
+        }
+      }
+    }
+  }
+}
