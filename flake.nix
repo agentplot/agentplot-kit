@@ -18,6 +18,7 @@
       lib.envContract = import ./lib/env-contract.nix;
 
       homeManagerModules.secretspec = import ./modules/home-manager/secretspec.nix;
+      homeManagerModules.claude-code = import ./modules/home-manager/claude-code.nix;
 
       packages = forAllSystems (
         system:

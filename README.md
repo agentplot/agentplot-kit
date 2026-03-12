@@ -15,11 +15,46 @@ Nix flake providing CLI packages, Home Manager modules, environment contracts, a
 
     # Use Home Manager modules
     # agentplot-kit.homeManagerModules.secretspec
+    # agentplot-kit.homeManagerModules.claude-code
   };
 }
 ```
 
 ## Home Manager Modules
+
+### claude-code
+
+Fork of the [official Claude Code HM module](https://github.com/nix-community/home-manager/blob/master/modules/programs/claude-code.nix) with multi-profile support and structured agent definitions. Consumers must choose this **or** the upstream module — both use the `programs.claude-code` namespace.
+
+**Added over upstream:**
+- `configDir` — relocate the config directory (default `.claude`)
+- `profiles` — multiple config directories for identity isolation (e.g., agent-deck profiles)
+- Structured `agents` submodule with typed `description`, `proactive`, `tools`, `model`, `permissionMode`, `prompt` (generates YAML frontmatter automatically)
+- `dangerouslySkipPermissions` — wraps the binary with `--dangerously-skip-permissions`
+
+```nix
+programs.claude-code = {
+  enable = true;
+
+  # Default profile (~/.claude/)
+  settings.permissions.defaultMode = "bypassPermissions";
+
+  agents.code-reviewer = {
+    description = "Expert code review specialist";
+    proactive = true;
+    tools = [ "Read" "Grep" ];
+    prompt = "You are an expert code reviewer.";
+  };
+
+  # Additional profiles — separate config dirs, separate identities
+  profiles.business = {
+    configDir = ".claude-business";
+    settings.permissions.defaultMode = "default";
+  };
+};
+```
+
+All upstream options are preserved: `settings`, `commands`, `hooks`, `rules`, `skills`, `outputStyles`, `memory`, `mcpServers`, `enableMcpIntegration`, and all `*Dir` variants.
 
 ### secretspec
 
