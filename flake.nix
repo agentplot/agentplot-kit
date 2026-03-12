@@ -17,6 +17,8 @@
     {
       lib.envContract = import ./lib/env-contract.nix;
 
+      homeManagerModules.secretspec = import ./modules/home-manager/secretspec.nix;
+
       packages = forAllSystems (
         system:
         let
