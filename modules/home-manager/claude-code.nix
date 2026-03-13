@@ -99,14 +99,24 @@ let
       };
 
       agents = lib.mkOption {
-        type = lib.types.attrsOf agentSubmodule;
+        type = lib.types.attrsOf (
+          lib.types.either
+            (lib.types.either lib.types.lines lib.types.path)
+            agentSubmodule
+        );
         default = { };
         description = ''
           Custom sub-agents for Claude Code.
-          Each agent gets a structured YAML frontmatter markdown file in the agents directory.
+          Each agent can be defined as:
+          - A string with inline content (including any frontmatter you write yourself)
+          - A path to a markdown file
+          - A structured attrset with typed fields (description, proactive, tools, model, permissionMode, prompt)
+            that auto-generates YAML frontmatter
+          Agents are stored in <configDir>/agents/ directory.
         '';
         example = lib.literalExpression ''
           {
+            # Structured definition (auto-generates frontmatter)
             code-reviewer = {
               description = "Expert code review specialist";
               proactive = true;
@@ -117,6 +127,19 @@ let
                 You are an expert code reviewer. Check for quality, security, and best practices.
               ''';
             };
+
+            # Inline string (upstream-compatible)
+            simple-agent = '''
+              ---
+              name: simple-agent
+              description: A simple agent
+              ---
+
+              You are a simple agent.
+            ''';
+
+            # File path (upstream-compatible)
+            from-file = ./agents/my-agent.md;
           }
         '';
       };
@@ -282,37 +305,44 @@ let
     ) conf.rules
     // lib.mapAttrs' (
       name: agent:
-      lib.nameValuePair "${cd}/agents/${name}.md" {
-        text =
-          let
-            toolsLine =
-              if agent.tools != [ ] then
-                "tools: ${lib.concatStringsSep ", " agent.tools}"
-              else
-                null;
-            modelLine = if agent.model != null then "model: ${agent.model}" else null;
-            permLine =
-              if agent.permissionMode != null then
-                "permissionMode: ${agent.permissionMode}"
-              else
-                null;
-            frontmatterLines = lib.filter (x: x != null) [
-              "name: ${name}"
-              "description: ${agent.description}"
-              "proactive: ${lib.boolToString agent.proactive}"
-              toolsLine
-              modelLine
-              permLine
-            ];
-          in
-          ''
-            ---
-            ${lib.concatStringsSep "\n" frontmatterLines}
-            ---
+      lib.nameValuePair "${cd}/agents/${name}.md" (
+        if lib.isPath agent then
+          { source = agent; }
+        else if lib.isString agent then
+          { text = agent; }
+        else
+          {
+            text =
+              let
+                toolsLine =
+                  if agent.tools != [ ] then
+                    "tools: ${lib.concatStringsSep ", " agent.tools}"
+                  else
+                    null;
+                modelLine = if agent.model != null then "model: ${agent.model}" else null;
+                permLine =
+                  if agent.permissionMode != null then
+                    "permissionMode: ${agent.permissionMode}"
+                  else
+                    null;
+                frontmatterLines = lib.filter (x: x != null) [
+                  "name: ${name}"
+                  "description: ${agent.description}"
+                  "proactive: ${lib.boolToString agent.proactive}"
+                  toolsLine
+                  modelLine
+                  permLine
+                ];
+              in
+              ''
+                ---
+                ${lib.concatStringsSep "\n" frontmatterLines}
+                ---
 
-            ${agent.prompt}
-          '';
-      }
+                ${agent.prompt}
+              '';
+          }
+      )
     ) conf.agents
     // lib.mapAttrs' (
       name: content:

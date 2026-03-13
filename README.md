@@ -24,13 +24,23 @@ Nix flake providing CLI packages, Home Manager modules, environment contracts, a
 
 ### claude-code
 
-Fork of the [official Claude Code HM module](https://github.com/nix-community/home-manager/blob/master/modules/programs/claude-code.nix) with multi-profile support and structured agent definitions. Consumers must choose this **or** the upstream module — both use the `programs.claude-code` namespace.
+Drop-in replacement for the [upstream Claude Code HM module](https://github.com/nix-community/home-manager/blob/master/modules/programs/claude-code.nix) — all existing `programs.claude-code` config works unchanged. Disable the upstream module and import this one to gain multi-profile support, structured agent definitions, and more.
+
+**Migration from upstream:**
+```nix
+{
+  disabledModules = [ "programs/claude-code.nix" ];
+  imports = [ inputs.agentplot-kit.homeManagerModules.claude-code ];
+  # Existing programs.claude-code config works as-is
+}
+```
 
 **Added over upstream:**
 - `configDir` — relocate the config directory (default `.claude`)
 - `profiles` — multiple config directories for identity isolation (e.g., agent-deck profiles)
-- Structured `agents` submodule with typed `description`, `proactive`, `tools`, `model`, `permissionMode`, `prompt` (generates YAML frontmatter automatically)
+- `agents` accepts both upstream format (strings/paths) and structured attrsets with typed `description`, `proactive`, `tools`, `model`, `permissionMode`, `prompt` (auto-generates YAML frontmatter)
 - `dangerouslySkipPermissions` — wraps the binary with `--dangerously-skip-permissions`
+- `rules`, `outputStyles`, `skills` — additional content options not yet in upstream
 
 ```nix
 programs.claude-code = {
@@ -39,12 +49,23 @@ programs.claude-code = {
   # Default profile (~/.claude/)
   settings.permissions.defaultMode = "bypassPermissions";
 
+  # Structured agent (auto-generates frontmatter)
   agents.code-reviewer = {
     description = "Expert code review specialist";
     proactive = true;
     tools = [ "Read" "Grep" ];
     prompt = "You are an expert code reviewer.";
   };
+
+  # Upstream-compatible agent (plain string with your own frontmatter)
+  agents.simple = ''
+    ---
+    name: simple
+    description: A simple agent
+    ---
+
+    You are a simple agent.
+  '';
 
   # Additional profiles — separate config dirs, separate identities
   profiles.business = {
@@ -53,8 +74,6 @@ programs.claude-code = {
   };
 };
 ```
-
-All upstream options are preserved: `settings`, `commands`, `hooks`, `rules`, `skills`, `outputStyles`, `memory`, `mcpServers`, `enableMcpIntegration`, and all `*Dir` variants.
 
 ### secretspec
 
