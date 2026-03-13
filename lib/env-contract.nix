@@ -9,8 +9,4 @@
     secrets = [ "PAPERLESS_API_TOKEN" ];
     env = [ "PAPERLESS_BASE_URL" ];
   };
-  pocket-id = {
-    secrets = [ "POCKET_ID_API_KEY" ];
-    env = [ "POCKET_ID_BASE_URL" ];
-  };
 }

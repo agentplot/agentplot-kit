@@ -11,7 +11,7 @@ Manage secrets for Docker Compose services using 1Password and SecretSpec.
 
 | Vault | Purpose | Used By |
 |-------|---------|---------|
-| **LoomOS-Services** | All Docker Compose service secrets | Docker services (linkding, paperless, pocket-id, etc.) |
+| **LoomOS-Services** | All Docker Compose service secrets | Docker services (linkding, paperless, etc.) |
 | **Agent-Secrets** | MCP server keys and AI API keys | Claude Code, Vibe Kanban, OpenClaw agents |
 | **Employee** | SA tokens only (bootstrap for headless auth) | User account only |
 
@@ -35,8 +35,6 @@ then `secretspec run` uses `OP_SERVICE_ACCOUNT_TOKEN` headlessly.
 Items in the LoomOS-Services vault use `{service-name} - {secret-name}` format:
 - `linkding - Superuser`
 - `paperless - PostgreSQL`
-- `pocket-id - Encryption Key`
-- `paperless - Pocket ID Paperless Client`
 
 The ` - ` separator avoids conflicts with the `op://vault/item/[section/]field` URI format.
 
@@ -71,7 +69,7 @@ op item create --vault="LoomOS-Services" \
 
 ### Step 3: Set Known-Value Secrets
 
-For secrets with known values (API keys from external services, client IDs from Pocket ID):
+For secrets with known values (API keys from external services):
 
 ```bash
 secretspec set API_KEY "the-known-value"
@@ -158,7 +156,7 @@ This prints a table showing every secret and which consumer environments it flow
 
 ## Adding Restish API Credentials
 
-For services accessed via restish (e.g., Paperless, Linkding, Pocket ID), use the coordinator-only pattern with `mcp = null`. The secret is an API token used by restish for REST API calls.
+For services accessed via restish (e.g., Paperless, Linkding), use the coordinator-only pattern with `mcp = null`. The secret is an API token used by restish for REST API calls.
 
 ```nix
 # Example: adding a restish API credential

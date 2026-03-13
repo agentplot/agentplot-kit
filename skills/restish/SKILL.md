@@ -15,9 +15,8 @@ Agent Plot provides self-contained CLI wrappers for managed services:
 |-----|---------|------|
 | `linkding-cli` | Linkding bookmark manager | `$LINKDING_API_TOKEN` |
 | `paperless-cli` | Paperless-ngx document manager | `$PAPERLESS_API_TOKEN` |
-| `pocket-id-cli` | Pocket ID OIDC provider | `$POCKET_ID_API_KEY` |
 
-Use the service-specific skills (linkding, paperless, pocket-id) for detailed guidance. This skill covers restish itself.
+Use the service-specific skills (linkding, paperless) for detailed guidance. This skill covers restish itself.
 
 ## Discovering Operations
 

@@ -109,7 +109,6 @@ Thin [restish](https://rest.sh)-based wrappers with OpenAPI auto-discovery. Each
 | Package | Service | Required Env |
 |---------|---------|-------------|
 | `linkding-cli` | [Linkding](https://github.com/sissbruecker/linkding) bookmarks | `LINKDING_API_TOKEN`, `LINKDING_BASE_URL` |
-| `pocket-id-cli` | [Pocket ID](https://pocket-id.org) OIDC provider | `POCKET_ID_API_KEY`, `POCKET_ID_BASE_URL` |
 | `paperless-cli` | [Paperless-ngx](https://docs.paperless-ngx.com) documents | `PAPERLESS_API_TOKEN`, `PAPERLESS_BASE_URL` |
 
 ## Environment Contracts
@@ -129,10 +128,8 @@ Agent skills in `skills/` provide operational knowledge for AI coding agents (Cl
 |-------|---------|
 | linkding | Manage bookmarks, tags, bundles via REST API |
 | paperless | Manage documents, mail rules, tags, workflows |
-| pocket-id | Manage OIDC clients, users, groups, API keys |
 | restish | Generic REST API client with OpenAPI auto-discovery |
 | secretspec | Secret management patterns with 1Password |
-| service-auth-setup | Provision OIDC auth for new services |
 | lobster | Workflow automation with OpenClaw engine |
 | recutils | Plain-text relational databases for agent state |
 | evernote-convert | Migrate Evernote exports to Paperless-ngx |

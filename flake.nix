@@ -27,7 +27,6 @@
         in
         {
           linkding-cli = pkgs.callPackage ./packages/linkding-cli { };
-          pocket-id-cli = pkgs.callPackage ./packages/pocket-id-cli { };
           paperless-cli = pkgs.callPackage ./packages/paperless-cli { };
         }
       );
