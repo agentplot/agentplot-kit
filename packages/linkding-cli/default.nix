@@ -6,11 +6,18 @@ writeShellApplication {
     : "''${LINKDING_BASE_URL:?LINKDING_BASE_URL not set}"
     : "''${LINKDING_API_TOKEN:?LINKDING_API_TOKEN not set}"
 
-    TMPCONF=$(mktemp -d)
-    trap 'rm -rf "$TMPCONF"' EXIT
-    mkdir -p "$TMPCONF/restish"
+    TMPHOME=$(mktemp -d)
+    trap 'rm -rf "$TMPHOME"' EXIT
 
-    cat > "$TMPCONF/restish/apis.json" << APIEOF
+    # restish uses configdir: ~/Library/Application Support on macOS, ~/.config on Linux
+    if [[ "$(uname)" == "Darwin" ]]; then
+      CFGDIR="$TMPHOME/Library/Application Support/restish"
+    else
+      CFGDIR="$TMPHOME/.config/restish"
+    fi
+    mkdir -p "$CFGDIR"
+
+    cat > "$CFGDIR/apis.json" << APIEOF
     {
       "linkding": {
         "base": "$LINKDING_BASE_URL",
@@ -26,6 +33,6 @@ writeShellApplication {
     }
     APIEOF
 
-    XDG_CONFIG_HOME="$TMPCONF" exec restish linkding "$@"
+    HOME="$TMPHOME" exec restish linkding "$@"
   '';
 }
