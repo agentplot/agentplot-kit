@@ -20,15 +20,7 @@
       homeManagerModules.secretspec = import ./modules/home-manager/secretspec.nix;
       homeManagerModules.claude-code = import ./modules/home-manager/claude-code.nix;
 
-      packages = forAllSystems (
-        system:
-        let
-          pkgs = nixpkgs.legacyPackages.${system};
-        in
-        {
-          linkding-cli = pkgs.callPackage ./packages/linkding-cli { };
-          paperless-cli = pkgs.callPackage ./packages/paperless-cli { };
-        }
-      );
+      # Service-specific packages (linkding-cli, paperless-cli) have moved to
+      # agentplot/agentplot, co-located with their clanServices.
     };
 }

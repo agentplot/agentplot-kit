@@ -24,12 +24,11 @@ Clan's `perInstance` returns both `nixosModule` and `darwinModule`. Client tooli
 - Implement linkding as the first clanService with server role (from swancloud) and client role (new)
 - Support multi-client configuration: one server, multiple named client configs on the same machine (personal/business partitioning)
 - Client role delegates to all 5 downstream HM modules based on per-client enable flags
-- Secrets managed through clan vars/sops (prompted API tokens for client role)
+- Secrets managed through clan vars/sops (auto-generated where possible, prompted where not)
 
 **Non-Goals:**
 - Modifying clan-core — this is a pattern built on top of existing Clan capabilities
 - Modifying any of the 5 downstream HM modules — we write into their existing interfaces
-- Auto-provisioning API tokens (future work — requires service-specific automation)
 - Migrating all services at once — linkding is the proof-of-concept; others follow the pattern
 
 ## Decisions
@@ -64,7 +63,10 @@ Clan's `perInstance` returns both `nixosModule` and `darwinModule`. Client tooli
 agentplot/
   modules/
     agentplot.nix                # adapter module (agentplot.user + agentplot.hmModules)
+    caddy-cloudflare.nix         # shared TLS module (moved from swancloud)
   services/
+    microvm/
+      default.nix                # microVM host/guest clanService (moved from swancloud)
     linkding/
       default.nix                # clanService definition (_class = "clan.service")
       skills/
@@ -75,31 +77,36 @@ agentplot/
           openapi.json           # bundled OpenAPI spec
 ```
 
-Note: `services/linkding/` maps to `clanModules.linkding` in flake outputs. This mapping is explicit in flake.nix.
+Note: `services/<name>/` maps to `clanModules.<name>` in flake outputs. This mapping is explicit in flake.nix. The microvm clanService is generic infrastructure — it may move upstream of agentplot later.
 
 **Rationale**: Co-locating the skill, package, and service definition makes the service self-contained. When the perInstance generates HM config, it can reference `./skills/SKILL.md` directly.
 
 ### 4. Delegation Strategy Per Downstream Module
 
-**Implementation phasing**: Ship Phase 1 with `cli` + `programs.claude-code` delegation only. Add the remaining four downstream modules in Phase 2. The independent enable flags make this a clean split — disabled flags produce no config.
+All five downstream modules are implemented together — each enable flag independently controls its delegation, so there's no reason to phase.
 
-**programs.claude-code** (Phase 1): Use `skills.<client-name>` for skill content (path to SKILL.md), `mcpServers.<client-name>` for MCP entries, and `profiles.<profile-name>.mcpServers.<client-name>` for profile-specific MCP. Skills and MCP servers are `attrsOf` so multiple clanServices compose via module merging.
+**programs.claude-code**: Use `skills.<client-name>` for skill content (path to SKILL.md), `mcpServers.<client-name>` for MCP entries, and `profiles.<profile-name>.mcpServers.<client-name>` for profile-specific MCP. Skills and MCP servers are `attrsOf` so multiple clanServices compose via module merging.
 
-**programs.agent-skills** (Phase 2): Register agentplot as a `sources` entry using `path`-based sources (not `input`, to avoid `extraSpecialArgs` complexity). Use `skills.explicit.<client-name>` to select the specific skill with `rename` for multi-client disambiguation. The `packages` option on explicit skills allows associating the client-specific CLI package, and the `transform` function can modify the SKILL.md at installation time to reference the correct package path. Enable the `targets.claude` target (and other targets as configured).
+**programs.agent-skills**: Register agentplot as a `sources` entry using `path`-based sources (not `input`, to avoid `extraSpecialArgs` complexity). Use `skills.explicit.<client-name>` to select the specific skill with `rename` for multi-client disambiguation. The `packages` option on explicit skills allows associating the client-specific CLI package, and the `transform` function can modify the SKILL.md at installation time to reference the correct package path. Enable the `targets.claude` target (and other targets as configured).
 
-**programs.agent-deck** (Phase 2): Add entries to `mcps.<client-name>` (freeform `attrsOf (attrsOf anything)`). Multiple clanServices can each add their own MCP entries without conflict.
+**programs.agent-deck**: Add entries to `mcps.<client-name>` (freeform `attrsOf (attrsOf anything)`). Multiple clanServices can each add their own MCP entries without conflict.
 
-**programs.openclaw** (Phase 2): Append to `skills` list with `mode = "inline"` or `mode = "symlink"` pointing to the co-located SKILL.md. Skills are list-typed, so multiple modules concatenate naturally.
+**programs.openclaw**: Append to `skills` list with `mode = "inline"` or `mode = "symlink"` pointing to the co-located SKILL.md. Skills are list-typed, so multiple modules concatenate naturally.
 
-**programs.claude-tools** (Phase 2): Prefer `skillsByClient` (the advanced mode using `attrsOf`) over `globalSkills` (list-typed) for better module merging. Use `claude-plugins.plugins` for marketplace plugins.
+**programs.claude-tools**: Prefer `skillsByClient` (the advanced mode using `attrsOf`) over `globalSkills` (list-typed) for better module merging. Use `claude-plugins.plugins` for marketplace plugins.
 
-### 5. Secret Management: Prompted Clan Vars
+### 5. Flexible Secret Management
 
-**Decision**: The client role uses `clan.core.vars.generators` with `prompts` for API tokens. Tokens are prompted during `clan vars generate` and stored via sops.
+**Decision**: The client role uses `clan.core.vars.generators` for API tokens, supporting two modes per service:
 
-**Rationale**: Matches the existing pattern in the openclaw clanService (see provider API key generators). The human logs into linkding, creates an API token, and provides it when prompted. This avoids the auto-provisioning complexity while keeping secrets in Clan's management.
+- **Auto-generated**: When the server can programmatically create API tokens (e.g., via admin API after deployment), the vars generator runs a script that provisions the token automatically. The generator script can use the server's admin credentials (themselves a shared clan var) to create and retrieve the token.
+- **Prompted**: When the server requires manual token creation (e.g., logging into a web UI), the vars generator uses `prompts` with `type = "hidden"` to collect the token during `clan vars generate`.
 
-**Per-client secret naming**: `agentplot-linkding-${clientName}-api-token` — each named client gets its own prompted secret.
+Each clanService declares which mode its server supports. The client role's vars generator dispatches accordingly. Both modes store the result identically via sops, so the client-side HM config doesn't need to know which mode was used.
+
+**Rationale**: Some services (like linkding) have admin APIs that can create tokens programmatically. Others require manual UI interaction. The design should support both without changing the client role interface.
+
+**Per-client secret naming**: `agentplot-linkding-${clientName}-api-token` — each named client gets its own secret, regardless of generation mode.
 
 ### 6. Per-Client CLI Wrapper Scripts
 
@@ -113,11 +120,11 @@ Note: `services/linkding/` maps to `clanModules.linkding` in flake outputs. This
 
 **[Risk] `deferredModule` type may not merge cleanly across multiple clanService instances** → Mitigation: Add a composition smoke test early — two clanServices both writing to `agentplot.hmModules` and verifying merge. Fallback: use `lib.types.raw` or `lib.types.attrs` if deferredModule causes evaluation issues.
 
-**[Risk] SKILL.md hardcodes CLI name** → Mitigation: The `programs.agent-skills` `transform` function and `packages` option modify the SKILL.md at installation time to reference the correct per-client CLI package path. For `programs.claude-code` skills (Phase 1), generate per-client SKILL.md via `pkgs.writeText` with CLI name substitution.
+**[Risk] SKILL.md hardcodes CLI name** → Mitigation: The `programs.agent-skills` `transform` function and `packages` option modify the SKILL.md at installation time to reference the correct per-client CLI package path. For `programs.claude-code` skills, generate per-client SKILL.md via `pkgs.writeText` with CLI name substitution.
 
-**[Risk] `programs.claude-tools` lists don't merge well from multiple modules** → Mitigation: Prefer `skillsByClient` (the advanced `attrsOf` mode) over `globalSkills` (list). Deferred to Phase 2.
+**[Risk] `programs.claude-tools` lists don't merge well from multiple modules** → Mitigation: Prefer `skillsByClient` (the advanced `attrsOf` mode) over `globalSkills` (list).
 
-**[Risk] `programs.openclaw.skills` is list-typed, not attrset** → Mitigation: Multiple modules appending to a list works in NixOS module system (lists concatenate). Verify no deduplication issues. Deferred to Phase 2.
+**[Risk] `programs.openclaw.skills` is list-typed, not attrset** → Mitigation: Multiple modules appending to a list works in NixOS module system (lists concatenate). Verify no deduplication issues with same-named skills from different clanServices.
 
 **[Risk] Breaking agentplot-kit consumers when removing linkding-cli** → Mitigation: Phase the migration — first add a re-export from agentplot-kit that points to agentplot, then remove after consumers have migrated. Or just remove and bump the version (agentplot-kit is early enough that a clean break is acceptable).
 

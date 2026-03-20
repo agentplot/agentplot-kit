@@ -8,7 +8,9 @@ The key challenge: Clan's `perInstance` returns a `nixosModule`, but client tool
 
 - **New repository**: `agentplot/agentplot` on GitHub — houses clanServices optimized for agent consumption
 - **New NixOS/darwin adapter module**: `agentplot.user` + `agentplot.hmModules` — the bridge between Clan's nixosModule output and Home Manager
-- **New clanService**: `linkding` with server role (moved from swancloud) and client role (new)
+- **Migrated clanService**: `microvm` (moved from swancloud) — generic microVM host/guest infrastructure (cloud-hypervisor, VirtioFS, TAP networking). Not agent-specific; may move upstream later.
+- **Migrated clanService**: `linkding` with server role (moved from swancloud, depends on microvm) and client role (new)
+- **Migrated shared module**: `caddy-cloudflare` (moved from swancloud) — Cloudflare DNS-01 TLS for Caddy
 - **Client role with named clients**: A single client role supporting `clients = { personal = { ... }; business = { ... }; }` for multi-instance partitioning on one machine
 - **HM delegation**: Client role generates config for 5 downstream HM modules:
   - `programs.claude-code` (agentplot-kit) — skills, MCP servers, agents per profile
@@ -31,8 +33,8 @@ The key challenge: Clan's `perInstance` returns a `nixosModule`, but client tool
 ## Impact
 
 - **New repository**: `agentplot/agentplot` created on GitHub under the agentplot org
-- **swancloud**: linkding clanService server role migrated out; swancloud inventory updated to reference `agentplot` input
+- **swancloud**: linkding clanService, microvm clanService, and caddy-cloudflare module migrated out; swancloud inventory updated to reference `agentplot` input; host-side config (PostgreSQL, bridge networking, static IPs, CoreDNS, Kanidm) stays in swancloud
 - **agentplot-kit**: linkding-cli package and linkding skill removed (moved to agentplot); env-contract updated; generic tooling (restish, secretspec, recutils, lobster skills; claude-code and secretspec HM modules) remains
-- **Flake inputs**: Consumers need `agentplot` as a flake input; agentplot itself needs `agentplot-kit`, `agent-skills-nix`, `claude-plugins-nix`, `nix-agent-deck`, `nix-openclaw` as inputs
-- **Secrets**: Server role uses clan vars/sops for infrastructure secrets; client role uses clan vars for API tokens (prompted during `clan vars generate`)
+- **Flake inputs**: Consumers need `agentplot` as a flake input; agentplot itself needs `nixpkgs`, `agentplot-kit`, `microvm`, `agent-skills-nix`, `claude-plugins-nix`, `nix-agent-deck`, `nix-openclaw` as inputs
+- **Secrets**: Server role uses clan vars/sops for infrastructure secrets; client role uses clan vars for API tokens (auto-generated where server supports it, prompted where not)
 - **Downstream HM modules**: No changes required — agentplot writes into their existing option interfaces
