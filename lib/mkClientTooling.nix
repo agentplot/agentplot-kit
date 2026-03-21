@@ -51,66 +51,67 @@ in
       };
 
       clientSubmodule = lib.types.submodule ({ name, ... }: {
-        options = {
+        options = builtins.foldl' lib.recursiveUpdate {
           name = lib.mkOption {
             type = lib.types.str;
             default = name;
             description = "Integration identifier and CLI binary name";
           };
-        }
-        # Skill-consuming targets (only when capabilities.skills is provided)
-        // lib.optionalAttrs hasSkills {
-          claude-code.skill.enabled = lib.mkOption {
-            type = lib.types.bool;
-            default = true;
-            description = "Install Claude Code agent skill for ${serviceName}";
-          };
-          agent-skills.enabled = lib.mkOption {
-            type = lib.types.bool;
-            default = false;
-            description = "Distribute skill via agent-skills module";
-          };
-          openclaw.skill.enabled = lib.mkOption {
-            type = lib.types.bool;
-            default = false;
-            description = "Add OpenClaw skill";
-          };
-          agent-deck.skill.enabled = lib.mkOption {
-            type = lib.types.bool;
-            default = false;
-            description = "Add skill to agent-deck skill pool";
-          };
-        }
-        # MCP-consuming targets (only when capabilities.mcp is provided)
-        // lib.optionalAttrs hasMcp {
-          claude-code.mcp.enabled = lib.mkOption {
-            type = lib.types.bool;
-            default = false;
-            description = "Configure Claude Code MCP server (default profile)";
-          };
-          claude-code.profiles = lib.mkOption {
-            type = lib.types.attrsOf profileSubmodule;
-            default = { };
-            description = "Per-profile MCP configuration for Claude Code";
-          };
-          agent-deck.mcp.enabled = lib.mkOption {
-            type = lib.types.bool;
-            default = false;
-            description = "Add agent-deck MCP entry";
-          };
-        }
-        # CLI target (only when capabilities.cli is provided)
-        // lib.optionalAttrs hasCli {
-          cli.enabled = lib.mkOption {
-            type = lib.types.bool;
-            default = true;
-            description = "Install per-client CLI wrapper script";
-          };
-        }
-        # Extra service-specific options
-        // (if extraClientOptions != null then
-          (extraClientOptions { inherit lib; }).options or (extraClientOptions { inherit lib; })
-        else { });
+        } (builtins.filter (x: x != { }) [
+          # Skill-consuming targets (only when capabilities.skills is provided)
+          (lib.optionalAttrs hasSkills {
+            claude-code.skill.enabled = lib.mkOption {
+              type = lib.types.bool;
+              default = true;
+              description = "Install Claude Code agent skill for ${serviceName}";
+            };
+            agent-skills.enabled = lib.mkOption {
+              type = lib.types.bool;
+              default = false;
+              description = "Distribute skill via agent-skills module";
+            };
+            openclaw.skill.enabled = lib.mkOption {
+              type = lib.types.bool;
+              default = false;
+              description = "Add OpenClaw skill";
+            };
+            agent-deck.skill.enabled = lib.mkOption {
+              type = lib.types.bool;
+              default = false;
+              description = "Add skill to agent-deck skill pool";
+            };
+          })
+          # MCP-consuming targets (only when capabilities.mcp is provided)
+          (lib.optionalAttrs hasMcp {
+            claude-code.mcp.enabled = lib.mkOption {
+              type = lib.types.bool;
+              default = false;
+              description = "Configure Claude Code MCP server (default profile)";
+            };
+            claude-code.profiles = lib.mkOption {
+              type = lib.types.attrsOf profileSubmodule;
+              default = { };
+              description = "Per-profile MCP configuration for Claude Code";
+            };
+            agent-deck.mcp.enabled = lib.mkOption {
+              type = lib.types.bool;
+              default = false;
+              description = "Add agent-deck MCP entry";
+            };
+          })
+          # CLI target (only when capabilities.cli is provided)
+          (lib.optionalAttrs hasCli {
+            cli.enabled = lib.mkOption {
+              type = lib.types.bool;
+              default = true;
+              description = "Install per-client CLI wrapper script";
+            };
+          })
+          # Extra service-specific options
+          (if extraClientOptions != null then
+            extraClientOptions { inherit lib; }
+          else { })
+        ]);
       });
     in
     {
