@@ -16,6 +16,7 @@
     in
     {
       lib.envContract = import ./lib/env-contract.nix;
+      lib.mkClientTooling = args: import ./lib/mkClientTooling.nix args;
 
       homeManagerModules.secretspec = import ./modules/home-manager/secretspec.nix;
       homeManagerModules.claude-code = import ./modules/home-manager/claude-code.nix;
