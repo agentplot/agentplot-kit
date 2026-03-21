@@ -8,13 +8,13 @@
 
 - [x] 2.1 Create `modules/agentplot.nix` with `options.agentplot.user` (nullOr str, default null) and `options.agentplot.hmModules` (attrsOf deferredModule)
 - [x] 2.2 Implement config block: when `agentplot.user` is non-null, import all `agentplot.hmModules` entries into `home-manager.users.${agentplot.user}`
-- [ ] 2.3 Smoke test: verify two mock clanServices both writing to `agentplot.hmModules` compose without conflict
+- [x] 2.3 Smoke test: verify two mock clanServices both writing to `agentplot.hmModules` compose without conflict
 
 ## 3. MicroVM Infrastructure ClanService
 
-- [ ] 3.1 Move `clanServices/microvm/default.nix` from swancloud to `services/microvm/default.nix`
-- [ ] 3.2 Move `modules/caddy-cloudflare.nix` from swancloud to `modules/caddy-cloudflare.nix`
-- [ ] 3.3 Verify microvm clanService host/guest roles work from the new location (cloud-hypervisor, VirtioFS shares, TAP networking)
+- [x] 3.1 Move `clanServices/microvm/default.nix` from swancloud to `services/microvm/default.nix`
+- [x] 3.2 Move `modules/caddy-cloudflare.nix` from swancloud to `modules/caddy-cloudflare.nix`
+- [x] 3.3 Verify microvm clanService host/guest roles work from the new location (cloud-hypervisor, VirtioFS shares, TAP networking)
 
 ## 4. Linkding Server Role
 
@@ -44,9 +44,9 @@
 ## 7. Integration and Migration
 
 - [x] 7.1 Update agentplot-kit: remove linkding-cli package, linkding skill, and linkding entry from env-contract.nix; remove paperless-cli package and paperless skill (these move to agentplot with their future clanService); keep generic tooling only (HM modules, restish/secretspec/recutils/lobster/evernote-convert skills); update flake.nix outputs
-- [ ] 7.2 Add agentplot as flake input to swancloud/clan-lol, update inventory to reference `input = "agentplot"` for linkding and microvm
-- [ ] 7.3 Remove migrated clanServices (linkding, microvm) and caddy-cloudflare module from swancloud
-- [ ] 7.4 Import `agentplot.nixosModules.agentplot` (or `darwinModules.agentplot`) in machine configs, set `agentplot.user = "chuck"`
-- [ ] 7.5 Configure linkding client role in inventory with personal and business clients
+- [x] 7.2 Add agentplot as flake input to swancloud/clan-lol, update inventory to reference `input = "agentplot"` for linkding and microvm
+- [x] 7.3 Remove migrated clanServices (linkding, microvm) from swancloud (caddy-cloudflare.nix stays locally until remaining services — kanidm, paperless, openclaw — migrate)
+- [x] 7.4 Import `agentplot.nixosModules.agentplot` (or `darwinModules.agentplot`) in machine configs, set `agentplot.user = "chuck"`
+- [x] 7.5 Configure linkding client role in inventory with personal and business clients
 - [ ] 7.6 Run `clan vars generate` to set API tokens for both clients
 - [ ] 7.7 Test: verify all integrations — CLI wrappers, skills, MCP entries, agent-skills, agent-deck, openclaw, and claude-tools
