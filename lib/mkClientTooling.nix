@@ -13,7 +13,7 @@
 }:
 let
   # Normalize capabilities with defaults
-  skills = capabilities.skills or null;   # list of paths (each to a SKILL.md) or null
+  skills = capabilities.skills or null;   # list of paths (each to a SKILL.md or skill directory) or null
   mcp = capabilities.mcp or null;         # { type, urlTemplate } or null
   cli = capabilities.cli or null;         # { package, wrapperName, envVars } or null
   secret = capabilities.secret or null;   # { name, mode, description? } or null
@@ -23,17 +23,21 @@ let
   hasCli = cli != null;
   hasSecret = secret != null;
 
-  # Derive skill names from directory paths: ./skills/foo/SKILL.md → "foo"
+  # Derive skill entries from paths: accepts both SKILL.md file paths and skill directories.
+  # ./skills/foo/SKILL.md → { name = "foo"; path = ./skills/foo/SKILL.md; dir = ./skills/foo; }
+  # ./skills/foo           → { name = "foo"; path = ./skills/foo/SKILL.md; dir = ./skills/foo; }
   # For single-skill services at ./skills/SKILL.md, the skill name = serviceName
   skillEntries =
     if !hasSkills then [ ]
-    else builtins.map (skillPath:
+    else builtins.map (skillInput:
       let
-        dir = builtins.dirOf skillPath;
+        isFile = builtins.hasSuffix "SKILL.md" (builtins.baseNameOf (toString skillInput));
+        dir = if isFile then builtins.dirOf skillInput else skillInput;
+        skillMd = if isFile then skillInput else "${skillInput}/SKILL.md";
         dirName = builtins.baseNameOf dir;
       in {
         name = if dirName == "skills" then serviceName else dirName;
-        path = skillPath;
+        path = skillMd;
         dir = dir;
       }
     ) skills;
@@ -241,11 +245,13 @@ in
                   })
 
                   # Claude Code skill (when agent-skills not taking over)
+                  # Pass the skill directory as a path so multi-file skill directories
+                  # are accessible to claude-code (uses `either lines path` type)
                   (lib.mkIf (skillEnabled && !agentSkillsEnabled) {
                     programs.claude-code.skills = builtins.listToAttrs (
                       builtins.map (entry: {
                         name = if builtins.length skillEntries == 1 then clientNameId else "${clientNameId}-${entry.name}";
-                        value = mkSkillContent entry;
+                        value = entry.dir;
                       }) skillEntries
                     );
                   })

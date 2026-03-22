@@ -17,6 +17,7 @@
     {
       lib.envContract = import ./lib/env-contract.nix;
       lib.mkClientTooling = args: import ./lib/mkClientTooling.nix args;
+      lib.mkUpstreamSkills = args: import ./lib/mkUpstreamSkills.nix args;
 
       nixosModules.caddy-cloudflare = import ./modules/caddy-cloudflare.nix;
 
