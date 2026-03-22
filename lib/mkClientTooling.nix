@@ -31,7 +31,8 @@ let
     if !hasSkills then [ ]
     else builtins.map (skillInput:
       let
-        isFile = builtins.hasSuffix "SKILL.md" (builtins.baseNameOf (toString skillInput));
+        baseName = builtins.baseNameOf (toString skillInput);
+        isFile = baseName == "SKILL.md";
         dir = if isFile then builtins.dirOf skillInput else skillInput;
         skillMd = if isFile then skillInput else "${skillInput}/SKILL.md";
         dirName = builtins.baseNameOf dir;

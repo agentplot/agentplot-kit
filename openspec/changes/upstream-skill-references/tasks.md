@@ -21,8 +21,8 @@
 
 ## 5. Integration testing
 
-- [ ] 5.1 Add test case: single-skill upstream directory (e.g., gno-style with sibling reference files) — verify all four downstream targets produce correct output
-- [ ] 5.2 Add test case: multi-skill upstream directory (e.g., ogham-mcp-style with 3 skill subdirs) — verify skill naming and delegation for all targets
-- [ ] 5.3 Add test case: backward compat — existing SKILL.md file paths produce unchanged output across all targets
-- [ ] 5.4 Add test case: mkUpstreamSkills with `include` filter — verify only specified skill dirs are returned
-- [ ] 5.5 Add test case: mkUpstreamSkills auto-discovery — verify all SKILL.md-containing subdirs are found when `include` is null
+- [x] 5.1 Add test case: single-skill upstream directory (e.g., gno-style with sibling reference files) — verify all four downstream targets produce correct output
+- [x] 5.2 Add test case: multi-skill upstream directory (e.g., ogham-mcp-style with 3 skill subdirs) — verify skill naming and delegation for all targets
+- [x] 5.3 Add test case: backward compat — existing SKILL.md file paths produce unchanged output across all targets
+- [x] 5.4 Add test case: mkUpstreamSkills with `include` filter — verify only specified skill dirs are returned
+- [x] 5.5 Add test case: mkUpstreamSkills auto-discovery — verify all SKILL.md-containing subdirs are found when `include` is null

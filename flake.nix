@@ -24,6 +24,8 @@
       homeManagerModules.secretspec = import ./modules/home-manager/secretspec.nix;
       homeManagerModules.claude-code = import ./modules/home-manager/claude-code.nix;
 
+      tests.upstream-skills = import ./tests/upstream-skills.nix { lib = nixpkgs.lib; };
+
       # Service-specific packages (linkding-cli, paperless-cli) have moved to
       # agentplot/agentplot, co-located with their clanServices.
     };
