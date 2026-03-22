@@ -18,6 +18,8 @@
       lib.envContract = import ./lib/env-contract.nix;
       lib.mkClientTooling = args: import ./lib/mkClientTooling.nix args;
 
+      nixosModules.caddy-cloudflare = import ./modules/caddy-cloudflare.nix;
+
       homeManagerModules.secretspec = import ./modules/home-manager/secretspec.nix;
       homeManagerModules.claude-code = import ./modules/home-manager/claude-code.nix;
 
