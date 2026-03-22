@@ -135,12 +135,44 @@ let
         (builtins.all (d: builtins.pathExists "${d}/SKILL.md") skillDirs))
     ];
 
+  # Custom skillsDir parameter
+  test_custom_skillsdir =
+    let
+      skillDirs = mkUpstreamSkills {
+        src = "${fixturesDir}/custom-skillsdir";
+        skillsDir = "agent-skills";
+        include = [ "foo" ];
+      };
+    in [
+      (assertEq "custom-skillsdir: returns one dir" (builtins.length skillDirs) 1)
+      (assert' "custom-skillsdir: path uses agent-skills dir"
+        (lib.hasSuffix "agent-skills/foo" (builtins.head skillDirs)))
+      (assert' "custom-skillsdir: SKILL.md exists"
+        (builtins.pathExists "${builtins.head skillDirs}/SKILL.md"))
+    ];
+
+  # Root-level SKILL.md path → name defaults to serviceName
+  test_root_level_skill =
+    let
+      skillPath = "${fixturesDir}/root-level-skill/skills/SKILL.md";
+      entries = normalizeSkillEntries "my-service" [ skillPath ];
+      entry = builtins.head entries;
+    in [
+      (assertEq "root-level: name defaults to serviceName" entry.name "my-service")
+      (assert' "root-level: dir ends with /skills"
+        (lib.hasSuffix "/skills" entry.dir))
+      (assert' "root-level: path ends with skills/SKILL.md"
+        (lib.hasSuffix "skills/SKILL.md" entry.path))
+    ];
+
   # ── Aggregate ────────────────────────────────────────────────────────────────
   allResults = test_single_upstream
     ++ test_multi_upstream
     ++ test_backward_compat
     ++ test_include_filter
-    ++ test_auto_discovery;
+    ++ test_auto_discovery
+    ++ test_custom_skillsdir
+    ++ test_root_level_skill;
 
   passed = builtins.length (builtins.filter (r: r.passed) allResults);
   failed = builtins.length (builtins.filter (r: !r.passed) allResults);
