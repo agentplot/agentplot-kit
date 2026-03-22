@@ -17,11 +17,13 @@ let
   mcp = capabilities.mcp or null;         # { type, urlTemplate } or null
   cli = capabilities.cli or null;         # { package, wrapperName, envVars } or null
   secret = capabilities.secret or null;   # { name, mode, description? } or null
+  extraPackages = capabilities.extraPackages or [ ];  # list of packages for global HM install
 
   hasSkills = skills != null && skills != [ ];
   hasMcp = mcp != null;
   hasCli = cli != null;
   hasSecret = secret != null;
+  hasExtraPackages = extraPackages != [ ];
 
   # Derive skill entries from paths: accepts both SKILL.md file paths and skill directories.
   # ./skills/foo/SKILL.md → { name = "foo"; path = ./skills/foo/SKILL.md; dir = ./skills/foo; }
@@ -249,6 +251,11 @@ in
                   cliEnabled = hasCli && (clientSettings.cli.enabled or false);
                 in
                 lib.mkMerge [
+                  # Extra packages (global HM installs, not scoped CLI wrappers)
+                  (lib.mkIf hasExtraPackages {
+                    home.packages = extraPackages;
+                  })
+
                   # CLI wrapper package
                   (lib.mkIf (cliEnabled && cliWrapper != null) {
                     home.packages = [ cliWrapper ];
