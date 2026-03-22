@@ -309,8 +309,10 @@ in
                                   [ "name: ${serviceName}" "${serviceName}-cli" ]
                                   [ "name: ${clientNameId}" clientNameId ]
                                   original;
-                            } // lib.optionalAttrs (cliWrapper != null) {
-                              packages = [ cliWrapper ];
+                            } // lib.optionalAttrs (cliWrapper != null || hasExtraPackages) {
+                              packages =
+                                (lib.optional (cliWrapper != null) cliWrapper)
+                                ++ extraPackages;
                             };
                           }
                         ) skillEntries
