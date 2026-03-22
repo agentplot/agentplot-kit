@@ -71,7 +71,8 @@ mkUpstreamSkills {
 ```nix
 skillEntries = builtins.map (skillInput:
   let
-    isFile = lib.hasSuffix "SKILL.md" (builtins.baseNameOf (toString skillInput));
+    baseName = builtins.baseNameOf (toString skillInput);
+    isFile = baseName == "SKILL.md";
     dir = if isFile then builtins.dirOf skillInput else skillInput;
     skillMd = if isFile then skillInput else "${skillInput}/SKILL.md";
     dirName = builtins.baseNameOf dir;
@@ -83,20 +84,32 @@ skillEntries = builtins.map (skillInput:
 ) skills;
 ```
 
+**Note**: Uses exact `baseName == "SKILL.md"` instead of `lib.hasSuffix` because `lib` is not in scope at the top-level `let` block (it's only available inside NixOS module functions). Exact match is also stricter — won't match files like `MY-SKILL.md`.
+
 **Rationale**: Minimal change to existing logic. The `dir` field already exists and is used by agent-skills and agent-deck. The `path` field continues to point to SKILL.md for text-extraction targets.
 
-### 5. Directory-aware delegation per target
+### 5. Unified directory delegation with per-client substitution
 
-**Decision**: Each downstream delegation block uses the appropriate field:
+**Decision**: All directory-aware targets receive a derived skill directory via `mkSkillDir`, which copies the original skill directory and replaces SKILL.md with per-client substituted content. Text-only targets continue using `mkSkillContent` for inline text.
 
-| Target | Uses `entry.dir` (full directory) | Uses `entry.path` (SKILL.md only) |
-|--------|----------------------------------|-----------------------------------|
-| claude-code (Phase 1, no agent-skills) | Yes — pass dir as path type | Fallback: readFile for inline |
-| agent-skills | Yes — `sources` registration | No |
-| agent-deck | Yes — `skillSources` | No |
-| openclaw | No | Yes — `readFile` for inline body |
+| Target | Receives | Substitution |
+|--------|----------|-------------|
+| claude-code (Phase 1, no agent-skills) | `mkSkillDir entry` (directory with substituted SKILL.md) | Yes |
+| agent-skills | `entry.dir` (raw directory, has its own `transform` callback) | Via transform |
+| agent-deck | `mkSkillDir entry` (directory with substituted SKILL.md) | Yes |
+| openclaw | `mkSkillContent entry` (inline text) | Yes |
 
-Claude-code's `attrsOf (either lines path)` type means we can pass the directory directly when the skill has sibling files, giving claude-code access to the full skill folder. For openclaw (text-only), we continue reading just SKILL.md.
+```nix
+mkSkillDir = entry:
+  pkgs.runCommand "${clientNameId}-skill-${entry.name}" { } ''
+    cp -r --no-preserve=mode ${entry.dir} $out
+    chmod -R u+w $out
+    substitute=${builtins.toFile "substituted-skill.md" (mkSkillContent entry)}
+    cp "$substitute" $out/SKILL.md
+  '';
+```
+
+**Rationale**: Normalizes behavior — every target gets both sibling file access and per-client name substitution. Avoids a split code path between "file input → inline text" and "directory input → raw path". The derivation is lightweight (just a copy + file replace) and produces a store path that all downstream targets can consume uniformly. Agent-skills is excluded because it already has its own `transform` mechanism for substitution.
 
 ## Risks / Trade-offs
 

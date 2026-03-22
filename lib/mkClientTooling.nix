@@ -167,12 +167,21 @@ in
                   }
                 else null;
 
-              # Per-skill content substitution
+              # Per-skill content substitution (text only, for openclaw)
               mkSkillContent = entry:
                 builtins.replaceStrings
                   [ "name: ${serviceName}" "${serviceName}-cli" ]
                   [ "name: ${clientNameId}" clientNameId ]
                   (builtins.readFile entry.path);
+
+              # Per-skill directory with substituted SKILL.md (for directory-aware targets)
+              mkSkillDir = entry:
+                pkgs.runCommand "${clientNameId}-skill-${entry.name}" { } ''
+                  cp -r --no-preserve=mode ${entry.dir} $out
+                  chmod -R u+w $out
+                  substitute=${builtins.toFile "substituted-skill.md" (mkSkillContent entry)}
+                  cp "$substitute" $out/SKILL.md
+                '';
 
               # MCP config (if mcp capability is declared)
               mcpConfig =
@@ -246,13 +255,13 @@ in
                   })
 
                   # Claude Code skill (when agent-skills not taking over)
-                  # Pass the skill directory as a path so multi-file skill directories
-                  # are accessible to claude-code (uses `either lines path` type)
+                  # Pass a skill directory with substituted SKILL.md so claude-code gets
+                  # both sibling files and per-client name rewriting
                   (lib.mkIf (skillEnabled && !agentSkillsEnabled) {
                     programs.claude-code.skills = builtins.listToAttrs (
                       builtins.map (entry: {
                         name = if builtins.length skillEntries == 1 then clientNameId else "${clientNameId}-${entry.name}";
-                        value = entry.dir;
+                        value = mkSkillDir entry;
                       }) skillEntries
                     );
                   })
@@ -313,7 +322,7 @@ in
                     programs.agent-deck.skillSources = builtins.listToAttrs (
                       builtins.map (entry: {
                         name = if builtins.length skillEntries == 1 then clientNameId else "${clientNameId}-${entry.name}";
-                        value = entry.dir;
+                        value = mkSkillDir entry;
                       }) skillEntries
                     );
                   })
