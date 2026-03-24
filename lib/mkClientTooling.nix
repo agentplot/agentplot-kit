@@ -162,6 +162,7 @@ in
                   pkgs.writeShellApplication {
                     name = wrapperName;
                     runtimeInputs = [ basePkg ];
+                    excludeShellChecks = [ "SC2155" ];
                     text = ''
                       ${envExports}
                       exec ${builtins.baseNameOf (lib.getExe basePkg)} "$@"
