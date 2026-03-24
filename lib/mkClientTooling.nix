@@ -155,14 +155,14 @@ in
                     envVarAttrs = if cli ? envVars then cli.envVars (clientSettings // { inherit tokenPath; }) else { };
                     envExports = lib.concatStringsSep "\n" (
                       lib.mapAttrsToList (k: v: ''
-                        export ${k}="${v}"
+                        ${k}="${v}"
+                        export ${k}
                       '') envVarAttrs
                     );
                   in
                   pkgs.writeShellApplication {
                     name = wrapperName;
                     runtimeInputs = [ basePkg ];
-                    excludeShellChecks = [ "SC2155" ];
                     text = ''
                       ${envExports}
                       exec ${builtins.baseNameOf (lib.getExe basePkg)} "$@"
