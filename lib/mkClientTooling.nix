@@ -267,7 +267,7 @@ in
                   (lib.mkIf (skillEnabled && !agentSkillsEnabled) {
                     programs.claude-code.skills = builtins.listToAttrs (
                       builtins.map (entry: {
-                        name = if builtins.length skillEntries == 1 then clientNameId else "${clientNameId}-${entry.name}";
+                        name = if builtins.length skillEntries == 1 then "${serviceName}-${clientNameId}" else "${serviceName}-${clientNameId}-${entry.name}";
                         value = mkSkillDir entry;
                       }) skillEntries
                     );
@@ -299,7 +299,7 @@ in
                       skills.explicit = builtins.listToAttrs (
                         builtins.map (entry:
                           let
-                            skillKey = if builtins.length skillEntries == 1 then clientNameId else "${clientNameId}-${entry.name}";
+                            skillKey = if builtins.length skillEntries == 1 then "${serviceName}-${clientNameId}" else "${serviceName}-${clientNameId}-${entry.name}";
                           in {
                             name = skillKey;
                             value = {
@@ -330,7 +330,7 @@ in
                   (lib.mkIf agentDeckSkillEnabled {
                     programs.agent-deck.skillSources = builtins.listToAttrs (
                       builtins.map (entry: {
-                        name = if builtins.length skillEntries == 1 then clientNameId else "${clientNameId}-${entry.name}";
+                        name = if builtins.length skillEntries == 1 then "${serviceName}-${clientNameId}" else "${serviceName}-${clientNameId}-${entry.name}";
                         value = mkSkillDir entry;
                       }) skillEntries
                     );
@@ -339,7 +339,7 @@ in
                   # OpenClaw skill
                   (lib.mkIf openclawEnabled {
                     programs.openclaw.skills = builtins.map (entry: {
-                      name = if builtins.length skillEntries == 1 then clientNameId else "${clientNameId}-${entry.name}";
+                      name = if builtins.length skillEntries == 1 then "${serviceName}-${clientNameId}" else "${serviceName}-${clientNameId}-${entry.name}";
                       mode = "inline";
                       body = mkSkillContent entry;
                       description =
