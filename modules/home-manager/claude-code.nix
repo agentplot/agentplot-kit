@@ -356,7 +356,8 @@ let
     ) conf.hooks
     // lib.mapAttrs' (
       name: content:
-      if lib.isPath content && lib.pathIsDirectory content then
+      if (lib.isPath content && lib.pathIsDirectory content)
+         || (builtins.isAttrs content && content ? outPath) then
         lib.nameValuePair "${cd}/skills/${name}" {
           source = content;
           recursive = true;
