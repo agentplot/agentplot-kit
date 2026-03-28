@@ -16,13 +16,17 @@ let
   skills = capabilities.skills or null;   # list of paths (each to a SKILL.md or skill directory) or null
   mcp = capabilities.mcp or null;         # { type, urlTemplate } or null
   cli = capabilities.cli or null;         # { package, wrapperName, envVars } or null
-  secret = capabilities.secret or null;   # { name, mode, description? } or null
+  secret = capabilities.secret or null;   # { name, mode, ... } or list thereof, or null
+  secrets =
+    if builtins.isList secret then secret
+    else if secret != null then [ secret ]
+    else [ ];
   extraPackages = capabilities.extraPackages or [ ];  # list of packages for global HM install
 
   hasSkills = skills != null && skills != [ ];
   hasMcp = mcp != null;
   hasCli = cli != null;
-  hasSecret = secret != null;
+  hasSecret = secrets != [ ];
   hasExtraPackages = extraPackages != [ ];
 
   # Derive skill entries from paths: accepts both SKILL.md file paths and skill directories.
@@ -138,11 +142,20 @@ in
             let
               clientNameId = clientSettings.name;
 
-              # Secret path (if secret capability is declared)
-              tokenPath =
+              # Secret paths (if secret capability is declared)
+              secretPaths =
                 if hasSecret then
-                  config.clan.core.vars.generators."agentplot-${serviceName}-${clientName}-${secret.name}".files."${secret.name}".path
-                else null;
+                  builtins.listToAttrs (builtins.map (s:
+                    {
+                      name = s.name;
+                      value =
+                        if s.mode == "shared" then
+                          config.clan.core.vars.generators.${s.generator}.files.${s.file}.path
+                        else
+                          config.clan.core.vars.generators."agentplot-${serviceName}-${clientName}-${s.name}".files."${s.name}".path;
+                    }
+                  ) secrets)
+                else { };
 
               # CLI wrapper (if cli capability is declared)
               cliWrapper =
@@ -152,7 +165,7 @@ in
                       then pkgs.callPackage cli.package { }
                       else cli.package;
                     wrapperName = if cli ? wrapperName then cli.wrapperName clientSettings else clientNameId;
-                    envVarAttrs = if cli ? envVars then cli.envVars (clientSettings // { inherit tokenPath; }) else { };
+                    envVarAttrs = if cli ? envVars then cli.envVars (clientSettings // { inherit secretPaths; }) else { };
                     envExports = lib.concatStringsSep "\n" (
                       lib.mapAttrsToList (k: v: ''
                         ${k}="${v}"
@@ -191,48 +204,60 @@ in
                 if hasMcp then
                   let
                     url = mcp.urlTemplate clientSettings;
+                    mcpExtraConfig =
+                      if mcp ? extraConfig then mcp.extraConfig
+                      else if mcp ? tokenFile then
+                        (settings: { tokenFile = builtins.head (builtins.attrValues settings.secretPaths); })
+                      else null;
                   in
                   { inherit url; } // lib.optionalAttrs (mcp.type == "http") { type = "http"; }
-                    // lib.optionalAttrs (mcp ? tokenFile && tokenPath != null) { tokenFile = tokenPath; }
+                    // lib.optionalAttrs (mcpExtraConfig != null && hasSecret) (mcpExtraConfig (clientSettings // { inherit secretPaths; }))
                 else null;
             in
             {
-              # Clan vars generator for this client's secret
-              vars = lib.optionalAttrs hasSecret {
-                "agentplot-${serviceName}-${clientName}-${secret.name}" =
-                  if secret.mode == "prompted" then {
-                    prompts."${secret.name}" = {
-                      type = "hidden";
-                      description =
-                        if secret ? description then secret.description clientSettings
-                        else "${secret.name} for ${serviceName} client '${clientName}'";
-                    };
-                    files."${secret.name}" = {
-                      secret = true;
-                    } // lib.optionalAttrs (config ? agentplot && config.agentplot.user != null) {
-                      owner = config.agentplot.user;
-                      group = "staff";
-                    };
-                    script = ''
-                      cp "$prompts/${secret.name}" "$out/${secret.name}"
-                    '';
+              # Clan vars generators for this client's secrets (skip shared mode)
+              vars =
+                let
+                  localSecrets = builtins.filter (s: s.mode != "shared") secrets;
+                in
+                builtins.listToAttrs (builtins.map (s:
+                  {
+                    name = "agentplot-${serviceName}-${clientName}-${s.name}";
+                    value =
+                      if s.mode == "prompted" then {
+                        prompts."${s.name}" = {
+                          type = "hidden";
+                          description =
+                            if s ? description then s.description clientSettings
+                            else "${s.name} for ${serviceName} client '${clientName}'";
+                        };
+                        files."${s.name}" = {
+                          secret = true;
+                        } // lib.optionalAttrs (config ? agentplot && config.agentplot.user != null) {
+                          owner = config.agentplot.user;
+                          group = "staff";
+                        };
+                        script = ''
+                          cp "$prompts/${s.name}" "$out/${s.name}"
+                        '';
+                      }
+                      else {
+                        # generated mode
+                        share = true;
+                        files."${s.name}" = {
+                          secret = true;
+                          mode = "0440";
+                        } // lib.optionalAttrs (config ? agentplot && config.agentplot.user != null) {
+                          owner = config.agentplot.user;
+                          group = "staff";
+                        };
+                        runtimeInputs = [ pkgs.openssl ];
+                        script = ''
+                          openssl rand -hex 32 > $out/${s.name}
+                        '';
+                      };
                   }
-                  else {
-                    # generated mode
-                    share = true;
-                    files."${secret.name}" = {
-                      secret = true;
-                      mode = "0440";
-                    } // lib.optionalAttrs (config ? agentplot && config.agentplot.user != null) {
-                      owner = config.agentplot.user;
-                      group = "staff";
-                    };
-                    runtimeInputs = [ pkgs.openssl ];
-                    script = ''
-                      openssl rand -hex 32 > $out/${secret.name}
-                    '';
-                  };
-              };
+                ) localSecrets);
 
               # HM module for this client
               hmModule = { ... }:
