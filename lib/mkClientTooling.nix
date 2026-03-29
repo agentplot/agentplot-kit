@@ -213,8 +213,15 @@ in
                   { inherit url; } // lib.optionalAttrs (mcp.type == "http") { type = "http"; }
                     // lib.optionalAttrs (mcpExtraConfig != null && hasSecret) (mcpExtraConfig (clientSettings // { inherit secretPaths; }))
                 else null;
+              # CLI wrapper name for serialization (null when CLI not enabled)
+              cliToolName =
+                if hasCli && (clientSettings.cli.enabled or false) && cliWrapper != null
+                then cliWrapper.name
+                else null;
             in
             {
+              inherit cliToolName;
+
               # Clan vars generators for this client's secrets (skip shared mode)
               vars =
                 let
@@ -394,6 +401,11 @@ in
             clientName: cc:
             lib.nameValuePair "${serviceName}-${clientName}" cc.hmModule
           ) clientConfigs;
+
+          # Expose CLI wrapper names for capabilities serialization
+          agentplot._contributedCliTools = builtins.filter (x: x != null) (
+            lib.mapAttrsToList (_: cc: cc.cliToolName) clientConfigs
+          );
         };
     in
     {
