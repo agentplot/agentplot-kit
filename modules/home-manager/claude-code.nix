@@ -2,6 +2,7 @@
   config,
   lib,
   pkgs,
+  options,
   ...
 }:
 let
@@ -585,7 +586,7 @@ in
     };
 
     # Bridge plugins to nix-claude-plugins module (when loaded)
-    programs.claude-plugins = lib.mkIf (cfg.plugins != { }) {
+    programs.claude-plugins = lib.mkIf (options.programs ? claude-plugins && cfg.plugins != { }) {
       enable = true;
       plugins = cfg.plugins;
     };
