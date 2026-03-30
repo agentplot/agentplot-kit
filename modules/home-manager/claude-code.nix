@@ -585,10 +585,8 @@ in
         );
     };
 
-    # Bridge plugins to nix-claude-plugins module (when loaded)
-    programs.claude-plugins = lib.mkIf (options.programs ? claude-plugins && cfg.plugins != { }) {
-      enable = true;
-      plugins = cfg.plugins;
-    };
+    # Note: programs.claude-code.plugins is consumed by nix-claude-plugins
+    # when both modules are loaded. The bridge is in nix-claude-plugins,
+    # not here, to avoid errors when claude-plugins module isn't present.
   };
 }
