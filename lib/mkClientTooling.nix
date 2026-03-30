@@ -22,12 +22,14 @@ let
     else if secret != null then [ secret ]
     else [ ];
   extraPackages = capabilities.extraPackages or [ ];  # list of packages for global HM install
+  plugins = capabilities.plugins or [ ];  # list of "pluginName@marketplace" strings to enable
 
   hasSkills = skills != null && skills != [ ];
   hasMcp = mcp != null;
   hasCli = cli != null;
   hasSecret = secrets != [ ];
   hasExtraPackages = extraPackages != [ ];
+  hasPlugins = plugins != [ ];
 
   # Derive skill entries from paths: accepts both SKILL.md file paths and skill directories.
   # ./skills/foo/SKILL.md → { name = "foo"; path = ./skills/foo/SKILL.md; dir = ./skills/foo; }
@@ -58,6 +60,11 @@ in
           type = lib.types.bool;
           default = false;
           description = "Add ${serviceName} MCP server entry to this Claude Code profile";
+        };
+        options.plugins.enabled = lib.mkOption {
+          type = lib.types.bool;
+          default = false;
+          description = "Enable ${serviceName} plugins in this Claude Code profile";
         };
       };
 
@@ -108,6 +115,14 @@ in
               type = lib.types.bool;
               default = false;
               description = "Add agent-deck MCP entry";
+            };
+          })
+          # Plugin-consuming targets (only when capabilities.plugins is provided)
+          (lib.optionalAttrs hasPlugins {
+            claude-code.plugins.enabled = lib.mkOption {
+              type = lib.types.bool;
+              default = true;
+              description = "Enable ${serviceName} plugins in Claude Code (default profile)";
             };
           })
           # CLI target (only when capabilities.cli is provided)
@@ -280,6 +295,12 @@ in
                   ccProfiles = if hasMcp then (clientSettings.claude-code.profiles or { }) else { };
                   adMcpEnabled = hasMcp && (clientSettings.agent-deck.mcp.enabled or false);
 
+                  # Plugin-related options (guarded by hasPlugins)
+                  pluginsEnabled = hasPlugins && (clientSettings.claude-code.plugins.enabled or false);
+                  pluginEnabledAttrs = builtins.listToAttrs (
+                    builtins.map (p: { name = p; value = true; }) plugins
+                  );
+
                   # CLI option (guarded by hasCli)
                   cliEnabled = hasCli && (clientSettings.cli.enabled or false);
                 in
@@ -292,6 +313,21 @@ in
                   # CLI wrapper package
                   (lib.mkIf (cliEnabled && cliWrapper != null) {
                     home.packages = [ cliWrapper ];
+                  })
+
+                  # Claude Code plugins (default profile enabledPlugins)
+                  (lib.mkIf pluginsEnabled {
+                    programs.claude-code.enabledPlugins = pluginEnabledAttrs;
+                  })
+
+                  # Claude Code plugins (per-profile enabledPlugins)
+                  (lib.mkIf (hasPlugins && ccProfiles != { }) {
+                    programs.claude-code.profiles = lib.mapAttrs (
+                      _profileName: profileSettings:
+                      lib.mkIf (profileSettings.plugins.enabled or false) {
+                        enabledPlugins = pluginEnabledAttrs;
+                      }
+                    ) ccProfiles;
                   })
 
                   # Claude Code skill (when agent-skills not taking over)

@@ -98,6 +98,20 @@ let
         description = "JSON configuration for Claude Code settings.json";
       };
 
+      enabledPlugins = lib.mkOption {
+        type = lib.types.attrsOf lib.types.bool;
+        default = { };
+        example = {
+          "pr-review-toolkit@claude-code-plugins" = true;
+          "pyright-lsp@claude-plugins-official" = true;
+        };
+        description = ''
+          Plugins to enable/disable for this config directory.
+          Keys are "pluginName@marketplaceName", values are booleans.
+          Merged into settings.json enabledPlugins.
+        '';
+      };
+
       agents = lib.mkOption {
         type = lib.types.attrsOf (
           lib.types.either
@@ -259,14 +273,17 @@ let
       cd = conf.configDir;
     in
     {
-      "${cd}/settings.json" = lib.mkIf (conf.settings != { }) {
-        source = jsonFormat.generate "claude-code-settings.json" (
-          conf.settings
-          // {
-            "$schema" = "https://json.schemastore.org/claude-code-settings.json";
-          }
-        );
-      };
+      "${cd}/settings.json" =
+        let
+          mergedSettings = conf.settings
+            // lib.optionalAttrs (conf.enabledPlugins != { }) {
+              enabledPlugins = (conf.settings.enabledPlugins or { }) // conf.enabledPlugins;
+            }
+            // { "$schema" = "https://json.schemastore.org/claude-code-settings.json"; };
+        in
+        lib.mkIf (conf.settings != { } || conf.enabledPlugins != { }) {
+          source = jsonFormat.generate "claude-code-settings.json" mergedSettings;
+        };
 
       "${cd}/CLAUDE.md" = lib.mkIf (conf.memory.text != null || conf.memory.source != null) (
         if conf.memory.text != null then { text = conf.memory.text; } else { source = conf.memory.source; }
@@ -474,6 +491,32 @@ in
           }
         '';
       };
+      plugins = lib.mkOption {
+        type = lib.types.attrsOf jsonFormat.type;
+        default = { };
+        description = ''
+          Plugins to install declaratively via nix-claude-plugins.
+          Each key is a friendly name; the value is an attrset matching
+          the programs.claude-plugins.plugins submodule schema
+          (pluginName, marketplace, version, pluginPath, scope, etc.).
+
+          Requires the nix-claude-plugins homeManagerModule to be loaded.
+          Plugin installation is global (not per-profile); use
+          enabledPlugins to control which profiles activate which plugins.
+        '';
+        example = lib.literalExpression ''
+          {
+            pr-review-toolkit = {
+              pluginName = "pr-review-toolkit";
+              marketplace = {
+                name = "claude-code-plugins";
+                src = inputs.claude-code-src;
+                source = { source = "git"; url = "https://github.com/anthropics/claude-code.git"; };
+              };
+            };
+          }
+        '';
+      };
     }
     // mkContentOptions { isProfile = false; };
 
@@ -539,6 +582,12 @@ in
         // lib.foldl' (acc: profileCfg: acc // mkHomeFiles profileCfg) { } (
           lib.attrValues cfg.profiles
         );
+    };
+
+    # Bridge plugins to nix-claude-plugins module (when loaded)
+    programs.claude-plugins = lib.mkIf (cfg.plugins != { }) {
+      enable = true;
+      plugins = cfg.plugins;
     };
   };
 }

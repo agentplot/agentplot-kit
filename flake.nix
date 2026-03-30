@@ -2,9 +2,13 @@
   description = "Agent Plot kit — skills, CLI packages, and env contracts for self-hosted services";
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+  inputs.nix-claude-plugins = {
+    url = "github:agentplot/nix-claude-plugins";
+    inputs.nixpkgs.follows = "nixpkgs";
+  };
 
   outputs =
-    { self, nixpkgs }:
+    { self, nixpkgs, nix-claude-plugins }:
     let
       supportedSystems = [
         "x86_64-linux"
@@ -23,6 +27,7 @@
 
       homeManagerModules.secretspec = import ./modules/home-manager/secretspec.nix;
       homeManagerModules.claude-code = import ./modules/home-manager/claude-code.nix;
+      homeManagerModules.claude-plugins = nix-claude-plugins.homeManagerModules.default;
 
       tests.upstream-skills = import ./tests/upstream-skills.nix { lib = nixpkgs.lib; };
 

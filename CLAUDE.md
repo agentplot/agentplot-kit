@@ -12,3 +12,6 @@
 ## claude-code HM Module
 - `programs.claude-code.skills` type: `attrsOf (either lines path)` — also accepts derivations (checked via `? outPath`)
 - Skill directories from `mkSkillDir` are derivations, not literal paths — dispatch must handle both
+- `programs.claude-code.plugins` bridges to `programs.claude-plugins.plugins` (nix-claude-plugins module required)
+- `programs.claude-code.enabledPlugins` merges into `settings.enabledPlugins` — works per-profile too
+- Plugin installation is global; enablement is per-profile via `enabledPlugins` in each profile's settings.json
