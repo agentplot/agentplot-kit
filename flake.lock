@@ -48,11 +48,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1774835669,
-        "narHash": "sha256-1B6UO3WOoBB/5nSaES3Dx0fD/OxiF5Ei9N0Z6FyeUxY=",
+        "lastModified": 1774885465,
+        "narHash": "sha256-Ecidc1ueNsiSAqwaXMXIW4NOJuzFa0E4TrTUtWN5fcY=",
         "owner": "agentplot",
         "repo": "nix-claude-plugins",
-        "rev": "0327a18a7aa385d019029434a7b95b8d96baf120",
+        "rev": "4e1964f79a74e433faf03358e8ff2c9f0f24a0f6",
         "type": "github"
       },
       "original": {
