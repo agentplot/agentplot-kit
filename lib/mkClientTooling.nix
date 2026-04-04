@@ -172,6 +172,13 @@ in
                   ) secrets)
                 else { };
 
+              # Convenience alias: path to the first (or only) secret file
+              tokenPath =
+                if hasSecret then
+                  let first = builtins.head secrets;
+                  in secretPaths.${first.name}
+                else null;
+
               # CLI wrapper (if cli capability is declared)
               cliWrapper =
                 if hasCli then
@@ -180,7 +187,7 @@ in
                       then pkgs.callPackage cli.package { }
                       else cli.package;
                     wrapperName = if cli ? wrapperName then cli.wrapperName clientSettings else clientNameId;
-                    envVarAttrs = if cli ? envVars then cli.envVars (clientSettings // { inherit secretPaths; }) else { };
+                    envVarAttrs = if cli ? envVars then cli.envVars (clientSettings // { inherit secretPaths tokenPath; }) else { };
                     envExports = lib.concatStringsSep "\n" (
                       lib.mapAttrsToList (k: v: ''
                         ${k}="${v}"
@@ -226,7 +233,7 @@ in
                       else null;
                   in
                   { inherit url; } // lib.optionalAttrs (mcp.type == "http") { type = "http"; }
-                    // lib.optionalAttrs (mcpExtraConfig != null && hasSecret) (mcpExtraConfig (clientSettings // { inherit secretPaths; }))
+                    // lib.optionalAttrs (mcpExtraConfig != null && hasSecret) (mcpExtraConfig (clientSettings // { inherit secretPaths tokenPath; }))
                 else null;
               # CLI wrapper name for serialization (null when CLI not enabled)
               cliToolName =
