@@ -463,6 +463,13 @@ in
         description = ''
           Add the --dangerously-skip-permissions flag to the wrapped binary.
           This bypasses all permission checks. Use with extreme caution.
+
+          When enabled, settings.skipDangerousModePermissionPrompt is also
+          set to true (via mkDefault) so the one-time acceptance dialog
+          does not fire on every launch. Without this, Claude Code tries
+          to persist acceptance to ~/.claude/settings.json — which is a
+          read-only nix-store symlink under this module — and the write
+          silently fails, re-prompting every invocation.
         '';
       };
 
@@ -522,6 +529,14 @@ in
     // mkContentOptions { isProfile = false; };
 
   config = lib.mkIf cfg.enable {
+    # When dangerouslySkipPermissions is enabled, the user has already
+    # consented — so pre-persist that acceptance. Otherwise Claude tries
+    # to write it to the read-only nix-store settings.json and re-prompts
+    # every launch. mkDefault lets users override if they really want the
+    # dialog back.
+    programs.claude-code.settings.skipDangerousModePermissionPrompt =
+      lib.mkIf cfg.dangerouslySkipPermissions (lib.mkDefault true);
+
     assertions =
       [
         {
