@@ -425,6 +425,14 @@ let
   # Profile submodule type
   profileModule = lib.types.submodule {
     options = mkContentOptions { isProfile = true; };
+
+    # Mirror the parent's dangerouslySkipPermissions auto-persistence into
+    # every profile. The wrapped binary applies the flag globally, so each
+    # profile's settings.json must pre-accept it — otherwise Claude re-prompts
+    # on every profile launch.
+    config = lib.mkIf cfg.dangerouslySkipPermissions {
+      settings.skipDangerousModePermissionPrompt = lib.mkDefault true;
+    };
   };
 in
 {
@@ -533,7 +541,7 @@ in
     # consented — so pre-persist that acceptance. Otherwise Claude tries
     # to write it to the read-only nix-store settings.json and re-prompts
     # every launch. mkDefault lets users override if they really want the
-    # dialog back.
+    # dialog back. (The profile submodule mirrors this for every profile.)
     programs.claude-code.settings.skipDangerousModePermissionPrompt =
       lib.mkIf cfg.dangerouslySkipPermissions (lib.mkDefault true);
 
