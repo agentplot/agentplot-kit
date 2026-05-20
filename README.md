@@ -40,6 +40,7 @@ Drop-in replacement for the [upstream Claude Code HM module](https://github.com/
 - `profiles` — multiple config directories for identity isolation (e.g., agent-deck profiles)
 - `agents` accepts both upstream format (strings/paths) and structured attrsets with typed `description`, `proactive`, `tools`, `model`, `permissionMode`, `prompt` (auto-generates YAML frontmatter)
 - `dangerouslySkipPermissions` — wraps the binary with `--dangerously-skip-permissions`
+- `channels` — generate ad-hoc `claude-<name>` launchers that start a profile with `--channels plugin:<spec>` (Claude Code channels research preview); the main `claude` binary stays untouched
 - `rules`, `outputStyles`, `skills` — additional content options not yet in upstream
 
 ```nix
@@ -71,6 +72,13 @@ programs.claude-code = {
   profiles.business = {
     configDir = ".claude-business";
     settings.permissions.defaultMode = "default";
+  };
+
+  # Ad-hoc channel launcher — `claude-discord` starts the business profile
+  # with the Discord channel bridge; plain `claude` is unaffected.
+  channels.discord = {
+    plugin = "discord@claude-plugins-official";
+    profile = "business";
   };
 };
 ```

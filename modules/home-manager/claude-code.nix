@@ -21,6 +21,27 @@ let
     ) config.programs.mcp.servers
   );
 
+  # Ad-hoc channel launchers — one `claude-<name>` binary per `channels` entry.
+  # Selects the named profile's config dir and appends `--channels`, leaving the
+  # main wrapped `claude` untouched.
+  channelLaunchers = lib.mapAttrsToList (
+    name: ch:
+    let
+      profileCfg = cfg.profiles.${ch.profile};
+    in
+    pkgs.writeShellApplication {
+      name = "claude-${name}";
+      runtimeInputs = [
+        cfg.finalPackage
+        pkgs.bun
+      ];
+      text = ''
+        export CLAUDE_CONFIG_DIR="$HOME/${profileCfg.configDir}"
+        exec claude --channels "plugin:${ch.plugin}" "$@"
+      '';
+    }
+  ) cfg.channels;
+
   # Structured agent submodule (cherry-picked from devenv)
   agentSubmodule = lib.types.submodule {
     options = {
@@ -533,6 +554,41 @@ in
           }
         '';
       };
+      channels = lib.mkOption {
+        type = lib.types.attrsOf (
+          lib.types.submodule {
+            options = {
+              plugin = lib.mkOption {
+                type = lib.types.str;
+                description = "Channel plugin spec, e.g. \"discord@claude-plugins-official\".";
+              };
+              profile = lib.mkOption {
+                type = lib.types.str;
+                description = "Name of a `profiles` entry whose configDir the launcher selects.";
+              };
+            };
+          }
+        );
+        default = { };
+        description = ''
+          Per-channel ad-hoc launcher binaries. Each entry generates a
+          `claude-<name>` binary on PATH that launches the named profile's
+          config dir with `--channels plugin:<plugin>`, leaving the main
+          `claude` binary untouched.
+
+          Requires the channel plugin to be installed + enabled separately
+          (via `plugins` / `enabledPlugins`) and the Claude Code channels
+          research-preview feature.
+        '';
+        example = lib.literalExpression ''
+          {
+            discord = {
+              plugin = "discord@claude-plugins-official";
+              profile = "willdan";
+            };
+          }
+        '';
+      };
     }
     // mkContentOptions { isProfile = false; };
 
@@ -558,6 +614,10 @@ in
             in
             lib.unique allDirs == allDirs;
           message = "Duplicate configDir values across programs.claude-code default and profiles. Each configDir must be unique.";
+        }
+        {
+          assertion = lib.all (ch: cfg.profiles ? ${ch.profile}) (lib.attrValues cfg.channels);
+          message = "Each programs.claude-code.channels.<name>.profile must name an entry in programs.claude-code.profiles.";
         }
       ]
       ++ mkAssertions cfg "programs.claude-code"
@@ -599,7 +659,7 @@ in
         cfg.package;
 
     home = {
-      packages = lib.mkIf (cfg.package != null) [ cfg.finalPackage ];
+      packages = lib.mkIf (cfg.package != null) ([ cfg.finalPackage ] ++ channelLaunchers);
 
       file =
         mkHomeFiles cfg
