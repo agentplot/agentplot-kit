@@ -39,7 +39,7 @@ For each OpenAPI endpoint on a client with `uxc.enabled = true`, `mkClientToolin
 #### Scenario: Binding for atomic OpenAPI
 
 - **WHEN** a client `personal` has `uxc.enabled = true` and the service declares the OpenAPI endpoint above
-- **THEN** `auth_bindings.json` SHALL contain an entry with `id = "agentplot-atomic-personal-openapi"`, `scheme = "https"`, `host = "atomic.swancloud.net"`, `path_prefix = "/api"`, `credential = "agentplot-atomic-personal"`, `priority = 100`, `enabled = true`
+- **THEN** `auth_bindings.json` SHALL contain an entry with `id = "agentplot-atomic-personal-openapi"`, `scheme = "https"`, `host = "atomic.swancloud.net"`, `path_prefix = "/api"`, `credential = "agentplot-atomic-personal-admin-token"`, `priority = 100`, `enabled = true`
 
 ### Requirement: OpenAPI endpoint projects to a UXC link shim
 
