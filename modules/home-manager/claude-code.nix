@@ -134,6 +134,25 @@ let
         '';
       };
 
+      availablePlugins = lib.mkOption {
+        type = lib.types.nullOr (lib.types.attrsOf lib.types.bool);
+        default = null;
+        example = {
+          "pr-review-toolkit@claude-code-plugins" = true;
+          "system-design-inception@willdan-marketplace" = true;
+        };
+        description = ''
+          Decouple install from enable. When non-null, every plugin whose
+          "pluginName@marketplaceName" key is true here is INSTALLED (cached)
+          into every target/profile, regardless of enabledPlugins; enabledPlugins
+          then only controls runtime activation (written to settings.json). This
+          makes "installed but off, opt-in per repo" expressible. When null
+          (default), install is gated by enabledPlugins (legacy coupled behavior).
+          Read at the top level only; the nix-claude-plugins bridge applies it to
+          all targets.
+        '';
+      };
+
       agents = lib.mkOption {
         type = lib.types.attrsOf (
           lib.types.either
