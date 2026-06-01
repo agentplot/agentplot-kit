@@ -77,7 +77,7 @@
 - [x] 10.9 Add eval-time required-skill check in `mkClientTooling`: when `mcp` or `openapi` capability declared, look up `services/<svc>/skills/<protocol>/` (or explicit `endpoint.skill = ./path`); fail with an error message pointing at the recipe if missing
 - [x] 10.10 Extend `mkSkillContent` substitution table to rewrite `${serviceName}-openapi-cli` and `${serviceName}-mcp-cli` to resolved per-client `linkName`; cover both SKILL.md body and frontmatter `name:` field
 - [x] 10.11 Document MCP fixture pattern: services without OpenAPI spec ship `skills/mcp/fixtures/help-output.txt` (captured `uxc <host> -h` output) and the spec-hash check hashes that fixture
-- [ ] 10.12 Verify recipe end-to-end against atomic: `nix run .#author-skill -- atomic openapi` produces a passing skill against `services/atomic/openapi.json`
+- [ ] 10.12 Verify recipe end-to-end against atomic: `nix run .#author-skill -- atomic openapi` produces a passing skill against `services/atomic/openapi.json` — _deferred to the downstream agentplot/agentplot atomic-adoption PR (no `services/` tree in this library repo; needs ANTHROPIC_API_KEY + live claude/uxc)_
 
 ## 11. Verification
 
@@ -87,4 +87,4 @@
 - [x] 10.4 Add a test that an `auth.secret` referencing a non-`op` secret fails UXC projection
 - [x] 10.5 Add a test that `mkUxcProjection` produces valid JSON matching UXC v0.16+ schema (snapshot test against a known-good output)
 - [x] 10.6 Confirm existing services (linkding, atomic, subcog) continue to evaluate unchanged when they don't add UXC declarations
-- [ ] 10.7 Manual end-to-end: apply on mac-studio with atomic's MCP+OpenAPI capability enabled; confirm `atomic-openapi-cli -h` and `atomic-mcp-cli` work; confirm `~/.uxc/credentials.json` matches expected shape; confirm `uxc auth credential show agentplot-atomic-personal-admin-token` resolves the `op://` reference
+- [ ] 10.7 Manual end-to-end: apply on mac-studio with atomic's MCP+OpenAPI capability enabled; confirm `atomic-openapi-cli -h` and `atomic-mcp-cli` work; confirm `~/.uxc/credentials.json` matches expected shape; confirm `uxc auth credential show agentplot-atomic-personal-admin-token` resolves the `op://` reference — _deferred to the downstream agentplot/agentplot atomic-adoption PR (needs mac-studio hardware + real 1Password)_
