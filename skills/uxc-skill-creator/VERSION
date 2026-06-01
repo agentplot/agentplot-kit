@@ -1,0 +1,4 @@
+# Vendored from holon-run/uxc — skills/uxc-skill-creator
+# Source: https://github.com/holon-run/uxc
+# Pinned ref: c93005f381ba7ddc7ad539776006b174c403159f
+# Sync: bump the `uxc-skill-creator-src` flake input, then re-copy this tree.

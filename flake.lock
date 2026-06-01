@@ -80,7 +80,8 @@
     "root": {
       "inputs": {
         "nix-claude-plugins": "nix-claude-plugins",
-        "nixpkgs": "nixpkgs"
+        "nixpkgs": "nixpkgs",
+        "uxc-skill-creator-src": "uxc-skill-creator-src"
       }
     },
     "systems": {
@@ -95,6 +96,22 @@
       "original": {
         "owner": "nix-systems",
         "repo": "default",
+        "type": "github"
+      }
+    },
+    "uxc-skill-creator-src": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1779762498,
+        "narHash": "sha256-zjFy5EqNktW2LvCU3Wd+T1zLV1yCa6JzvaQ1P7/UnVs=",
+        "owner": "holon-run",
+        "repo": "uxc",
+        "rev": "c93005f381ba7ddc7ad539776006b174c403159f",
+        "type": "github"
+      },
+      "original": {
+        "owner": "holon-run",
+        "repo": "uxc",
         "type": "github"
       }
     }
