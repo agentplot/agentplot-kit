@@ -16,6 +16,32 @@ Module options:
 - **THEN** HM activation SHALL write `~/.uxc/credentials.json`, `~/.uxc/auth_bindings.json`, and place the link shim on `$PATH`
 - **AND** the JSON files SHALL parse and contain the declared content
 
+### Requirement: Service-projected and consumer-declared entries merge on the same options
+
+`programs.uxc.{credentials,bindings,links}` SHALL be the single population surface for both first-party service projections (written by `mkClientTooling`'s client role) and consumer-declared third-party endpoints (written directly by the downstream HM config). The module SHALL render the module-system-merged value of these options without distinguishing entry origin. The module SHALL NOT crawl services or any source other than its own options.
+
+#### Scenario: First-party projection and third-party entry coexist in one credentials.json
+
+- **WHEN** `mkClientTooling` sets `programs.uxc.links."atomic-openapi-cli"` and `programs.uxc.credentials."agentplot-atomic-personal-admin-token"` on a client, **AND** the consumer separately sets `programs.uxc.links.deepwiki = { host = "https://mcp.deepwiki.com/mcp"; }`
+- **THEN** the rendered `~/.uxc/credentials.json` SHALL contain the atomic credential **AND** the HM profile SHALL include both the `atomic-openapi-cli` and `deepwiki` link shims
+- **AND** neither entry SHALL overwrite the other
+
+#### Scenario: Auth-less third-party link needs no credential or binding
+
+- **WHEN** the consumer sets only `programs.uxc.links.deepwiki = { host = "https://mcp.deepwiki.com/mcp"; }` with no matching credential or binding
+- **THEN** HM activation SHALL succeed and install the `deepwiki` shim
+- **AND** `credentials.json`/`auth_bindings.json` SHALL NOT gain any deepwiki entry
+
+### Requirement: Duplicate link names and credential ids fail at eval time
+
+The module SHALL assert that every link name in `programs.uxc.links` and every credential id in `programs.uxc.credentials` is unique across the merged set. A collision (e.g., a consumer reusing a generated `agentplot-*` name) SHALL produce an evaluation error naming the conflicting key, NOT a silent last-wins overwrite.
+
+#### Scenario: Consumer reuses a projected link name
+
+- **WHEN** `mkClientTooling` projects a link named `atomic-openapi-cli` **AND** the consumer also declares `programs.uxc.links."atomic-openapi-cli"`
+- **THEN** evaluation SHALL fail with an error naming `atomic-openapi-cli` as a duplicate UXC link
+- **AND** no `~/.uxc` files SHALL be written
+
 ### Requirement: credentials.json is written with mode 0600
 
 The module SHALL write `~/.uxc/credentials.json` with file mode `"0600"`. The file SHALL contain an envelope `{ "version": 1, "credentials": { ... } }` where the inner attrset is the value of `programs.uxc.credentials`.

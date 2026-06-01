@@ -139,14 +139,43 @@ Naming convention:
 
 ### D7: UXC HM module owns `~/.uxc/*.json` files declaratively
 
-The new `modules/home-manager/uxc.nix` module collects credentials/bindings/links from all enabled services and writes:
+The new `modules/home-manager/uxc.nix` module renders whatever sits in its public `programs.uxc.{credentials,bindings,links}` options into:
 - `~/.uxc/credentials.json` via `home.file` with `mode = "0600"`
 - `~/.uxc/auth_bindings.json` via `home.file` with `mode = "0600"`
 - Link shims via `home.packages` (a `pkgs.writeShellApplication` per link, installed into the HM profile's `bin/`)
 
+The module does not reach into services itself — it only reads its own options. Population of those options is two-sided (see D16): `mkClientTooling`'s client role writes first-party service projections into them, and the consumer writes third-party entries (deepwiki, context7, github, …) into the same options directly.
+
 UXC's daemon cache at `~/.uxc/cache/` and daemon socket files are runtime state — the module does not manage them.
 
-**Rationale**: Declarative ownership is the whole point. Writing the files via `home.file` keeps them pure and prevents drift from imperative `uxc auth credential set` calls. Users who need one-off credentials outside Nix can use a separate credentials file via `UXC_HOME` override.
+**Rationale**: Declarative ownership is the whole point. Writing the files via `home.file` keeps them pure and prevents drift from imperative `uxc auth credential set` calls. Making the *options* the seam (rather than having the module crawl services) means ordinary NixOS module merging unifies first-party and third-party entries into one `credentials.json` — no separate code path for hand-declared endpoints. Users who need genuinely imperative one-off credentials outside Nix can still point a separate file via `UXC_HOME` override.
+
+### D16: `programs.uxc.*` options are the single merge point for first-party and third-party endpoints
+
+First-party services (`atomic`, `paperless`, …) and third-party servers (`deepwiki`, `context7`, `github`, …) reach UXC through the **same** public HM options. There is no separate "passthrough" surface.
+
+- `mkClientTooling`'s clanService client role, when `uxc.enabled = true` on a client, sets `programs.uxc.credentials.agentplot-<svc>-<client>-<secret> = …`, `programs.uxc.bindings = [ … ]`, and `programs.uxc.links."<svc>-<protocol>-cli" = …` on that client's HM config.
+- The consumer declares third-party endpoints by writing the same options in their own HM module:
+
+```nix
+# deepwiki has no auth → just a link; no credential, no binding.
+programs.uxc.links.deepwiki = { host = "https://mcp.deepwiki.com/mcp"; };
+
+# context7 / github carry a token in env → link injects it; a credential is
+# only needed if a binding-based bearer is wanted instead of env passthrough.
+programs.uxc.links.context7 = {
+  host = "command:${pkgs.nodejs}/bin/npx -y @upstash/context7-mcp@latest";
+  injectEnv = { CONTEXT7_API_KEY = "$CONTEXT7_API_KEY"; };
+};
+```
+
+Because both sides write attrsets/lists into the same options, NixOS module merging unifies them into one `credentials.json` / `auth_bindings.json` / link set. The module renders the merged result; it never distinguishes origin.
+
+**Collision rule**: link names and credential ids MUST be unique across the merged set. The `agentplot-<svc>-<client>-<secret>` credential prefix (D6) and `<svc>-<protocol>-cli` link convention keep first-party entries namespaced; a consumer who reuses a generated name on a third-party entry triggers an eval-time assertion (`programs.uxc` asserts no duplicate link name / credential id), not a silent last-wins overwrite.
+
+**Rationale**: The downstream question — "should deepwiki be baked into agentplot-kit or set up by the consumer?" — resolves cleanly here: agentplot-kit ships the *mechanism* (`programs.uxc.*` + the renderer), `mkClientTooling` auto-populates it for services the kit owns, and the consumer declares everything else on the identical options. Third-party servers are deliberately **not** baked into the kit (they carry no kit-owned secret lifecycle, binary, or wrapper-skill gate — the things `mkClientTooling` exists to manage). Making the options the seam avoids a parallel "raw passthrough" API and gives one merged Nix-managed `credentials.json` instead of split files.
+
+**Alternative considered**: a dedicated `programs.uxc.extraCredentials`/`extraLinks` passthrough distinct from the projected entries. Rejected — module merging already composes attrsets/lists, so a second surface adds names to track for zero capability. The collision assertion gives the only thing a split surface would have (clear ownership) without the split.
 
 ### D8: MCP-via-UXC included in v1 (upstream bug fixed)
 
