@@ -31,7 +31,7 @@ in
 
     services.caddy.package = pkgs.caddy.withPlugins {
       plugins = [ "github.com/caddy-dns/cloudflare@v0.2.3" ];
-      hash = "sha256-20o+14cn/eeLuf1c8uGE1ODRZGC0oxocaIVlv4tFSvA=";
+      hash = "sha256-9tO1blZoDhfxBbHMYsJzEWejuAuzM36/56dBR68dVKk=";
     };
 
     # Oneshot service creates the env file BEFORE caddy starts
