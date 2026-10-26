@@ -1,0 +1,26 @@
+# sluice gates every merge into a bolt and onto main: `nix flake check`, the
+# kit's test (README), which runs each committed skill's validate.sh and
+# verifies the spec hash. main and the bolts live on GitHub: every round
+# fetches them from origin and forms on what it holds, and a landing is a
+# leased push as the host's [forge] app. crew makes each bolt there with
+# `sluice branch create`.
+[tests]
+runner = "command"
+command = "nix flake check"
+
+[branches."bolt/*"]
+parallel = 4
+batch = false
+flaky = "fail"
+timeout = "15m"
+remote = "origin"
+
+[branches.main]
+parallel = 2
+batch = false
+flaky = "fail"
+timeout = "15m"
+remote = "origin"
+
+[branches.main.pull_requests]
+reviews = 0
