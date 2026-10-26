@@ -9,6 +9,7 @@ runner = "command"
 command = "nix flake check"
 
 [branches."bolt/*"]
+required = ["nix flake check"]
 parallel = 4
 batch = false
 flaky = "fail"
@@ -16,6 +17,7 @@ timeout = "15m"
 remote = "origin"
 
 [branches.main]
+required = ["nix flake check"]
 parallel = 2
 batch = false
 flaky = "fail"
